@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="es-ES">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#0a0e13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Planificador EV3 · Tenerife</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+/* ---------- Tema (oscuro por defecto; "sol" = claro de alto contraste) ---------- */
+:root{--bg:#0a0e13;--s1:#131a22;--s2:#1c2631;--line:#2a3644;--tx:#f3f7fb;--mu:#9aa9b9;--ac:#c8f03c;--acTx:#0a0e13;
+  --good:#3ddc84;--warn:#ffc233;--bad:#ff5247;--blue:#55bdff;--mapH:34vh}
+body.sol{--bg:#ffffff;--s1:#f1f4f7;--s2:#e3e9ef;--line:#b9c4cf;--tx:#05080b;--mu:#3d4a57;--ac:#2f6b00;--acTx:#ffffff;
+  --good:#0b7a3b;--warn:#8a5a00;--bad:#c4190f;--blue:#005fa8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+#mapWrap{position:relative;height:var(--mapH);flex:none;transition:height .2s}
+body.bigmap{--mapH:68vh}
+#map{position:absolute;inset:0;background:#1a222c}
+#mapBtns{position:absolute;right:8px;top:8px;z-index:500;display:flex;flex-direction:column;gap:8px}
+#mapBtns button{min-width:48px;height:48px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--s1);font-weight:700;font-size:14px}
+#legend{position:absolute;left:8px;bottom:8px;z-index:500;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:4px 8px;font-size:12px;display:none;gap:8px;align-items:center}
+#legend i{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:3px;vertical-align:middle}
+main{flex:1;overflow-y:auto;padding:10px 10px 18px;overscroll-behavior:contain}
+.tab{display:none}.tab.on{display:block}
+nav{flex:none;display:flex;background:var(--s1);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;height:60px;border:0;background:none;color:var(--mu);font-size:13px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+nav button b{font-size:20px;line-height:1}
+nav button.on{color:var(--ac)}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:10px}
+h3{margin:0 0 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);font-weight:700}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0}
+.grow{flex:1}
+.btn{height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--s2);font-weight:600}
+.btn.sm{height:40px;font-size:14px;padding:0 10px}
+.btn.ic{width:48px;padding:0;flex:none;font-size:20px}
+.big{width:100%;height:64px;border:0;border-radius:16px;background:var(--ac);color:var(--acTx);font-size:19px;font-weight:800;letter-spacing:.03em}
+.big:disabled{opacity:.6}
+input[type=text],input[type=number],input[type=datetime-local],input[type=time],input[type=password],select,textarea{
+  width:100%;height:48px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--tx)}
+textarea{height:90px;padding:10px;font-size:14px}
+label.f{display:block;font-size:13px;color:var(--mu);margin:8px 0 4px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;margin-bottom:8px}
+.seg button{flex:1;min-height:44px;border:0;border-radius:9px;background:none;color:var(--mu);font-weight:700;font-size:14px;padding:2px 4px}
+.seg button.on{background:var(--ac);color:var(--acTx)}
+.wp{position:relative;margin-bottom:8px}
+.wp .dot{width:14px;height:14px;border-radius:50%;flex:none;border:3px solid var(--blue)}
+.wp.dest .dot{border-color:var(--bad);border-radius:3px}
+.wp.org .dot{border-color:var(--good)}
+.sug{position:absolute;left:22px;right:0;top:50px;z-index:30;background:var(--s2);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 8px 24px #0008}
+.sug div{padding:12px;border-bottom:1px solid var(--line);font-size:15px}
+.sug div:last-child{border:0}
+.hint{font-size:13px;color:var(--mu);margin:4px 0}
+.sl{display:flex;align-items:center;gap:10px}
+.sl output{min-width:62px;text-align:right;font-weight:800;font-size:20px;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;height:44px;accent-color:var(--ac)}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--s2);font-size:22px;font-weight:700}
+.step output{min-width:36px;text-align:center;font-size:20px;font-weight:800}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;font-weight:700}
+.tog input{width:28px;height:28px;accent-color:var(--ac)}
+/* Resultados */
+.badge{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--s2);border:1px solid var(--line);font-size:13px;font-weight:700}
+.hero{text-align:center;padding:14px 12px}
+.hero .lbl{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);font-weight:700}
+.hero .pct{font-size:84px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+.hero .pct small{font-size:34px;font-weight:700}
+.hero .bar{height:12px;border-radius:6px;background:var(--s2);overflow:hidden;margin:10px 0 6px;position:relative}
+.hero .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+.hero .bar u{position:absolute;top:0;bottom:0;width:2px;background:var(--tx)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.st{background:var(--s2);border-radius:12px;padding:9px 10px}
+.st span{display:block;font-size:12px;color:var(--mu);font-weight:600}
+.st b{font-size:21px;font-variant-numeric:tabular-nums}
+.st em{font-style:normal;font-size:13px;color:var(--mu)}
+.alert{border:2px solid var(--bad);background:color-mix(in srgb,var(--bad) 14%,var(--s1));border-radius:16px;padding:12px;margin-bottom:10px}
+.alert b{color:var(--bad)}
+.note{border-left:4px solid var(--warn);padding:6px 10px;font-size:14px;color:var(--mu);margin:6px 0}
+.alt{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.alt button{flex:none;text-align:left;border:2px solid var(--line);background:var(--s2);border-radius:12px;padding:8px 12px;min-width:150px}
+.alt button.on{border-color:var(--ac)}
+.alt button b{display:block;font-size:16px}.alt button span{font-size:12px;color:var(--mu)}
+.alt button i{font-style:normal;color:var(--ac);font-size:12px;font-weight:700;display:block}
+canvas{display:block;width:100%;touch-action:pan-y}
+details{background:var(--s1);border:1px solid var(--line);border-radius:16px;margin-bottom:10px}
+summary{padding:14px 12px;font-weight:700;list-style:none;display:flex;justify-content:space-between}
+summary::after{content:"▾";color:var(--mu)}
+details[open] summary::after{content:"▴"}
+details>div{padding:0 12px 12px}
+.bd{display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;font-size:14px}
+.bd i{height:10px;border-radius:5px;display:block;min-width:2px}
+.bd b{font-variant-numeric:tabular-nums;text-align:right}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 4px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mu);font-size:12px}
+.li{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.li:last-child{border:0}
+.li small{color:var(--mu);display:block}
+.rule{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
+.rule select,.rule input{height:42px;padding:0 6px;font-size:14px}
+a{color:var(--blue)}
+/* Hoja inferior, aviso y espera */
+#sheet{position:fixed;inset:0;z-index:2000;background:#000a;display:none;align-items:flex-end}
+#sheet.on{display:flex}
+#sheet>div{background:var(--s1);width:100%;max-height:75vh;overflow:auto;border-radius:20px 20px 0 0;padding:14px 12px calc(14px + env(safe-area-inset-bottom))}
+#toast{position:fixed;left:10px;right:10px;bottom:76px;z-index:3000;padding:12px 14px;border-radius:12px;background:var(--s2);border:1px solid var(--line);font-weight:600;display:none;box-shadow:0 8px 24px #0009}
+#toast.err{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 22%,var(--s1))}
+#busy{position:fixed;inset:0;z-index:2500;background:#000b;display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;font-weight:700;color:#fff}
+#busy.on{display:flex}
+#busy i{width:46px;height:46px;border:5px solid #fff3;border-top-color:var(--ac);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.leaflet-container{font:inherit}
+.leaflet-popup-content{margin:10px}
+.pp button{display:block;width:100%;height:42px;margin:4px 0;border-radius:10px;border:1px solid #bbb;background:#f3f3f3;color:#111;font-weight:700}
+@media(min-width:700px){main{max-width:640px;margin:0 auto;width:100%}}
+</style>
+</head>
+<body>
+<div id="mapWrap">
+  <div id="map"></div>
+  <div id="mapBtns">
+    <button id="bMapSize" aria-label="Agrandar mapa">⤢</button>
+    <button id="bLayer" aria-label="Cambiar capa">kWh</button>
+    <button id="bChg" aria-label="Puntos de recarga">⚡</button>
+  </div>
+  <div id="legend"></div>
+</div>
+
+<main id="main">
+  <!-- ============ RUTA ============ -->
+  <section id="t-ruta" class="tab on">
+    <div class="card">
+      <div id="wps"></div>
+      <div class="row">
+        <button class="btn sm grow" id="bAddStop">＋ Parada</button>
+        <button class="btn sm grow" id="bSwap">⇅ Invertir</button>
+      </div>
+      <div class="hint">También puedes tocar el mapa para fijar origen, parada o destino.</div>
+    </div>
+
+    <div class="card">
+      <h3>Tráfico</h3>
+      <div class="seg" data-k="traf"><button data-v="now">Ahora</button><button data-v="sched">Programar</button><button data-v="manual">Manual</button></div>
+      <div id="trafNow" class="hint"></div>
+      <div id="trafSched">
+        <div class="seg" data-k="when"><button data-v="depart">Salir a las…</button><button data-v="arrive">Llegar a las…</button></div>
+        <input type="datetime-local" id="inWhen">
+        <div class="hint" id="trafSchedHint"></div>
+      </div>
+      <div id="trafMan">
+        <div class="seg" data-k="man"><button data-v="global">Toda la ruta</button><button data-v="zones">Por zonas</button><button data-v="auto">Por horario</button></div>
+        <div id="manGlobal" class="seg" data-k="manLvl"><button data-v="f">Sin tráfico</button><button data-v="n">Normal</button><button data-v="c">Congestionado</button></div>
+        <div id="manZones"></div>
+        <div id="manAuto"><label class="f">Día y hora de salida (aplica los patrones de Ajustes)</label><input type="datetime-local" id="inManDt"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Batería</h3>
+      <label class="f">Batería al salir</label>
+      <div class="sl"><input type="range" id="rSoc" min="5" max="100" step="1"><output id="oSoc"></output></div>
+      <label class="f">Reserva mínima a la llegada</label>
+      <div class="sl"><input type="range" id="rRes" min="0" max="40" step="1"><output id="oRes"></output></div>
+    </div>
+
+    <div class="card">
+      <h3>Ocupantes, carga y conducción</h3>
+      <div class="row" style="justify-content:space-between">
+        <div><label class="f">Pasajeros (además de ti)</label>
+          <div class="step"><button data-st="pax" data-d="-1">−</button><output id="oPax"></output><button data-st="pax" data-d="1">＋</button></div></div>
+        <div style="width:45%"><label class="f">Carga (kg)</label><input type="number" id="inCargo" min="0" max="600" step="5" inputmode="numeric"></div>
+      </div>
+      <label class="f">Climatización</label>
+      <div class="seg" data-k="climate"><button data-v="auto">Automática</button><button data-v="on">Sí</button><button data-v="off">No</button></div>
+      <label class="f">Modo de conducción</label>
+      <div class="seg" data-k="mode"><button data-v="eco">Eco</button><button data-v="normal">Normal</button><button data-v="sport">Sport</button></div>
+      <label class="f">Regeneración</label>
+      <div class="seg" data-k="regen" data-num="1"><button data-v="0">0</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="4">i-Pedal</button></div>
+    </div>
+
+    <div class="card">
+      <label class="tog">IDA Y VUELTA<input type="checkbox" id="cRound"></label>
+      <div id="roundBox">
+        <label class="f">Hora de la vuelta</label>
+        <input type="datetime-local" id="inRet">
+        <div id="retLvlBox"><label class="f">Tráfico en la vuelta</label>
+          <div class="seg" data-k="retLvl"><button data-v="f">Sin tráfico</button><button data-v="n">Normal</button><button data-v="c">Congestionado</button></div></div>
+        <div class="hint">La vuelta se calcula aparte, con su propia hora y su propio tráfico.</div>
+      </div>
+    </div>
+    <button class="big" id="bCalc">CALCULAR RUTA</button>
+  </section>
+
+  <!-- ============ RESULTADO ============ -->
+  <section id="t-res" class="tab"><div id="res"><div class="card hint">Aún no hay ninguna ruta calculada. Ve a «Ruta», elige origen y destino y pulsa CALCULAR.</div></div></section>
+
+  <!-- ============ CALIBRAR ============ -->
+  <section id="t-cal" class="tab"><div id="cal"></div></section>
+
+  <!-- ============ AJUSTES ============ -->
+  <section id="t-aj" class="tab"><div id="aj"></div></section>
+</main>
+
+<nav>
+  <button data-tab="ruta" class="on"><b>◎</b>Ruta</button>
+  <button data-tab="res"><b>▤</b>Resultado</button>
+  <button data-tab="cal"><b>◐</b>Calibrar</button>
+  <button data-tab="aj"><b>⚙</b>Ajustes</button>
+</nav>
+
+<div id="sheet"><div id="sheetIn"></div></div>
+<div id="toast"></div>
+<div id="busy"><i></i><span id="busyTx">Calculando…</span></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* =====================================================================
+   PLANIFICADOR EV3 · TENERIFE — NÚCLEO (constantes + modelo físico)
+   Todo lo que hay en este bloque es cálculo puro (sin DOM ni red).
+   ===================================================================== */
+'use strict';
+
+/* ---------- 1. CONSTANTES DEL COCHE Y DEL TRÁFICO (todas editables en Ajustes) ---------- */
+const TF_BBOX = { latMin: 27.99, latMax: 28.60, lonMin: -16.93, lonMax: -16.11 };
+
+const DEFAULTS = {
+  keys: { tomtom: '', ors: '', ocm: '' },
+  car: {
+    variant: 'fwd',      // 'fwd' = GT-Line Long Range 150 kW · 'awd' = GT-Line AWD 195 kW
+    battGross: 81.4,     // kWh brutos
+    battUse: 78,         // kWh útiles
+    wltpKm: 563,         // km WLTP (llanta 19")
+    wltpCons: 16.2,      // kWh/100 km WLTP
+    mass: 1930,          // kg en vacío
+    driver: 80,          // kg conductor
+    paxKg: 75,           // kg por pasajero adicional
+    powerKW: 150,        // potencia motor
+    cd: 0.27,            // coeficiente aerodinámico (estimado)
+    area: 2.45,          // m² área frontal (estimada)
+    crr: 0.009,          // resistencia a la rodadura
+    etaDrive: 0.88,      // batería → ruedas
+    etaRegen: 0.65,      // ruedas → batería (nivel 2 de regeneración)
+    regenMaxKW: 100,     // tope de potencia regenerativa (lado batería)
+    auxKW: 0.3,          // electrónica
+    hvacMaxKW: 2.0,      // climatización máxima (bomba de calor)
+    comfortC: 21.5,      // temperatura de confort del habitáculo
+    rotInertia: 1.04     // masa equivalente de las partes rotativas
+  },
+  variants: {
+    fwd: { mass: 1930, powerKW: 150, wltpCons: 16.2 },
+    awd: { mass: 2000, powerKW: 195, wltpCons: 15.8 }
+  },
+  // Multiplicador de etaRegen según el nivel de regeneración (0-3, 4 = i-Pedal)
+  regenLevels: { 0: 0.80, 1: 0.92, 2: 1.00, 3: 1.05, 4: 1.09 },
+  // Modos de conducción: factor de velocidad, de aceleración y de climatización
+  modes: {
+    eco:    { v: 0.95, a: 0.85, hvac: 0.85 },
+    normal: { v: 1.00, a: 1.00, hvac: 1.00 },
+    sport:  { v: 1.06, a: 1.30, hvac: 1.00 }
+  },
+  traffic: {
+    // Velocidad respecto al flujo libre de cada nivel
+    ratioF: 1.00, ratioN: 0.85, ratioNA: 0.70, ratioC: 0.35,
+    // Paradas estructurales por km (rotondas, semáforos) con tráfico fluido
+    stopsHwy: 0, stopsRur: 0.15, stopsUrb: 1.0,
+    stopsJamMin: 2, stopsJamMax: 6,   // ciclos stop & go por km en congestión
+    peakFactor: 1.2,                  // velocidad punta entre paradas / velocidad media
+    latAcc: 2.3,                      // m/s² aceleración lateral cómoda en curva
+    acc: 1.3, dec: 1.5,               // m/s² aceleración y frenada habituales
+    windShelter: 0.6                  // fracción del viento a 10 m que llega al coche
+  },
+  model: {
+    step: 60,            // m, longitud de cada tramo
+    defaultT: 21,        // °C a nivel del mar si no hay previsión
+    lapse: 0.0065,       // °C por metro de altitud
+    coldRef: 15, coldK: 0.006, coldMax: 1.15, // pérdida de eficiencia de la batería en frío
+    flow: true           // refinar el tiempo real con Traffic Flow de TomTom
+  },
+  // Patrones "Automático por horario". días: LV, V, S, D, F (festivo), T (todos). La última regla que coincide gana.
+  patternDefault: 'n',
+  rules: [
+    { days: 'LV', from: '07:00', to: '09:30', zones: '1,2,3,5', level: 'c' },
+    { days: 'LV', from: '13:30', to: '15:30', zones: '1,5', level: 'na' },
+    { days: 'LV', from: '17:00', to: '19:30', zones: '1,2,3,5', level: 'c' },
+    { days: 'V',  from: '15:00', to: '20:30', zones: '4,6', level: 'c' },
+    { days: 'V',  from: '15:00', to: '20:30', zones: '7', level: 'na' },
+    { days: 'D',  from: '16:30', to: '21:00', zones: '4', level: 'c' },
+    { days: 'D',  from: '16:30', to: '21:00', zones: '3,7', level: 'na' },
+    { days: 'F',  from: '10:00', to: '20:00', zones: '4,7', level: 'na' },
+    { days: 'T',  from: '22:00', to: '06:30', zones: '1,2,3,4,5,6,7', level: 'f' }
+  ],
+  festivos: ['2026-12-08', '2026-12-25', '2027-01-01', '2027-01-06', '2027-02-02', '2027-03-25',
+    '2027-03-26', '2027-05-01', '2027-10-12', '2027-11-01', '2027-12-06', '2027-12-08', '2027-12-25']
+};
+
+const LEVELS = {
+  f:  { name: 'Sin tráfico',   key: 'ratioF',  col: '#3ddc84' },
+  n:  { name: 'Normal',        key: 'ratioN',  col: '#b7e04a' },
+  na: { name: 'Normal-alto',   key: 'ratioNA', col: '#ffc233' },
+  c:  { name: 'Congestionado', key: 'ratioC',  col: '#ff5247' }
+};
+
+/* Zonas de tráfico de Tenerife (aproximadas). 'line' = corredor con buffer en km; 'circ' = casco urbano. */
+const ZONES = [
+  { id: 1, name: 'TF-5 Santa Cruz ↔ La Laguna', type: 'line', buf: 0.6,
+    pts: [[28.4560, -16.2600], [28.4600, -16.2760], [28.4650, -16.2920], [28.4720, -16.3050], [28.4810, -16.3190], [28.4850, -16.3410], [28.4880, -16.3720]] },
+  { id: 2, name: 'TF-5 La Laguna ↔ Puerto de la Cruz / Los Realejos', type: 'line', buf: 0.8,
+    pts: [[28.4880, -16.3720], [28.4760, -16.4100], [28.4680, -16.4300], [28.4470, -16.4500], [28.4300, -16.4650], [28.4200, -16.4900], [28.4050, -16.5180], [28.4000, -16.5450], [28.3890, -16.5800]] },
+  { id: 3, name: 'TF-1 Santa Cruz ↔ Candelaria / Güímar', type: 'line', buf: 0.8,
+    pts: [[28.4540, -16.2620], [28.4400, -16.2850], [28.4230, -16.3020], [28.4020, -16.3270], [28.3760, -16.3600], [28.3540, -16.3740], [28.3250, -16.3800], [28.2950, -16.3850]] },
+  { id: 4, name: 'TF-1 sur (Aeropuerto Sur ↔ Las Américas ↔ Adeje)', type: 'line', buf: 0.9,
+    pts: [[28.0780, -16.5450], [28.0680, -16.5700], [28.0560, -16.6100], [28.0540, -16.6500], [28.0570, -16.6900], [28.0650, -16.7100], [28.0800, -16.7230], [28.0980, -16.7300], [28.1200, -16.7400]] },
+  { id: 5, name: 'Cascos urbanos de Santa Cruz y La Laguna', type: 'circ',
+    cs: [[28.4660, -16.2560, 2.3], [28.4870, -16.3160, 1.8]] },
+  { id: 6, name: 'Costa Adeje / Los Cristianos (urbano sur)', type: 'circ',
+    cs: [[28.0520, -16.7160, 1.5], [28.0800, -16.7300, 2.2]] },
+  { id: 7, name: 'Resto (montaña, Teide, Anaga, Teno)', type: 'rest' }
+];
+
+/* ---------- 2. GEOMETRÍA ---------- */
+const RAD = Math.PI / 180, G = 9.81, KX = 111.32 * Math.cos(28.3 * RAD), KY = 110.57;
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+function hav(a, b) {
+  const dLat = (b.lat - a.lat) * RAD, dLon = (b.lon - a.lon) * RAD;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.sin(dLon / 2) ** 2;
+  return 12742000 * Math.asin(Math.sqrt(s));
+}
+function bearing(a, b) {
+  const y = Math.sin((b.lon - a.lon) * RAD) * Math.cos(b.lat * RAD);
+  const x = Math.cos(a.lat * RAD) * Math.sin(b.lat * RAD) - Math.sin(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.cos((b.lon - a.lon) * RAD);
+  return (Math.atan2(y, x) / RAD + 360) % 360;
+}
+const angDiff = (a, b) => { let d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
+const inTenerife = p => p.lat >= TF_BBOX.latMin && p.lat <= TF_BBOX.latMax && p.lon >= TF_BBOX.lonMin && p.lon <= TF_BBOX.lonMax;
+
+/* Distancia (km) de un punto a una polilínea [[lat,lon],…] en proyección plana local */
+function distToLineKm(lat, lon, pts) {
+  const px = lon * KX, py = lat * KY; let best = 1e9;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const ax = pts[i][1] * KX, ay = pts[i][0] * KY, bx = pts[i + 1][1] * KX, by = pts[i + 1][0] * KY;
+    const dx = bx - ax, dy = by - ay, t = clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+    const d = Math.hypot(px - ax - t * dx, py - ay - t * dy);
+    if (d < best) best = d;
+  }
+  return best;
+}
+/* Zona de un punto. Los corredores de autopista solo cuentan si la vía es rápida (o no se sabe). */
+function zoneOf(lat, lon, vKmh) {
+  if (vKmh == null || vKmh >= 60)
+    for (const z of ZONES) if (z.type === 'line' && distToLineKm(lat, lon, z.pts) <= z.buf) return z.id;
+  for (const z of ZONES) if (z.type === 'circ')
+    for (const c of z.cs) if (Math.hypot((lon - c[1]) * KX, (lat - c[0]) * KY) <= c[2]) return z.id;
+  return 7;
+}
+
+/* Remuestrea una polilínea [{lat,lon,ele?,v?,urb?}] en puntos cada 'step' metros (v = velocidad libre del tramo, m/s) */
+function resample(c, step) {
+  const out = [{ lat: c[0].lat, lon: c[0].lon, ele: c[0].ele, v: c[0].v, urb: c[0].urb, d: 0 }];
+  let need = step, D = 0;
+  for (let i = 0; i < c.length - 1; i++) {
+    const a = c[i], b = c[i + 1], L = hav(a, b);
+    if (L < 0.01) continue;
+    let pos = 0;
+    while (L - pos >= need) {
+      pos += need; D += need; need = step;
+      const f = pos / L;
+      out.push({ lat: a.lat + (b.lat - a.lat) * f, lon: a.lon + (b.lon - a.lon) * f,
+        ele: a.ele != null && b.ele != null ? a.ele + (b.ele - a.ele) * f : undefined, v: a.v, urb: a.urb, d: D });
+    }
+    need -= L - pos; D += L - pos;
+  }
+  const last = c[c.length - 1], tail = D - out[out.length - 1].d;
+  if (tail > step * 0.3 || out.length < 2) out.push({ lat: last.lat, lon: last.lon, ele: last.ele, v: last.v, urb: last.urb, d: D });
+  else { const o = out[out.length - 1]; o.lat = last.lat; o.lon = last.lon; o.d = D; if (last.ele != null) o.ele = last.ele; }
+  return out;
+}
+
+/* Construye el perfil de la ruta: tramos, rumbo, velocidad libre, límite por curva y zona */
+function buildProfile(coords, S) {
+  const T = S.traffic, pts = resample(coords, S.model.step), n = pts.length - 1;
+  for (let i = 0; i < n; i++) { pts[i].len = pts[i + 1].d - pts[i].d; pts[i].h = bearing(pts[i], pts[i + 1]); }
+  for (let i = 0; i < n; i++) {
+    const p = pts[i];
+    // Sin velocidad de la fuente: estimación por zona (autopista 100, urbano 40, resto 65 km/h)
+    if (!(p.v > 0)) { const z = zoneOf(p.lat, p.lon, null); p.v = (z <= 4 ? 100 : z <= 6 ? 40 : 65) / 3.6; p.vGuess = true; }
+    p.zone = zoneOf(p.lat, p.lon, p.v * 3.6);
+    p.cls = p.v >= 22 ? 'hwy' : (p.urb || p.zone === 5 || p.zone === 6 || p.v < 9.2) ? 'urb' : 'rur';
+    // Radio de curva a partir del cambio de rumbo con los tramos vecinos
+    const d1 = i > 0 ? angDiff(p.h, pts[i - 1].h) : 0, d2 = i < n - 1 ? angDiff(pts[i + 1].h, p.h) : 0;
+    const dth = Math.max(d1, d2) * RAD;
+    p.vCurve = dth < 0.04 ? 99 : Math.max(4.5, Math.sqrt(T.latAcc * p.len / dth));
+  }
+  return { pts, n, dist: pts[n].d, hasEle: pts.every(p => p.ele != null) };
+}
+
+/* Asigna y suaviza la elevación (el MDT tiene ruido) y calcula pendientes y desniveles */
+function finishElevation(P) {
+  const pts = P.pts, n = P.n, raw = pts.map(p => p.ele || 0);
+  for (let i = 0; i <= n; i++) {
+    let s = 0, c = 0;
+    for (let k = Math.max(0, i - 2); k <= Math.min(n, i + 2); k++) { s += raw[k]; c++; }
+    pts[i].ele = (i === 0 || i === n) ? raw[i] : s / c;
+  }
+  P.asc = 0; P.desc = 0;
+  for (let i = 0; i < n; i++) {
+    const dz = pts[i + 1].ele - pts[i].ele;
+    pts[i].grade = clamp(dz / pts[i].len, -0.2, 0.2);
+    if (dz > 0) P.asc += dz; else P.desc -= dz;
+  }
+  P.hasEle = true;
+  return P;
+}
+
+/* ---------- 3. TRÁFICO ---------- */
+function isFestivo(d, S) {
+  const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return S.festivos.includes(k);
+}
+/* Nivel de tráfico de una zona en un instante según el modo: global, por zonas o automático por horario */
+function levelAt(zone, ms, S, spec) {
+  if (spec.mode === 'global') return spec.global;
+  if (spec.mode === 'zones') return spec.zones[zone] || 'n';
+  const d = new Date(ms), dow = d.getDay(), fest = isFestivo(d, S), hm = d.getHours() * 60 + d.getMinutes();
+  let lvl = S.patternDefault;
+  for (const r of S.rules) {
+    const ok = r.days === 'T' || (r.days === 'F' && fest) || (!fest && (
+      (r.days === 'LV' && dow >= 1 && dow <= 5) || (r.days === 'V' && dow === 5) || (r.days === 'S' && dow === 6) || (r.days === 'D' && dow === 0)));
+    if (!ok || !String(r.zones).split(',').map(Number).includes(zone)) continue;
+    const a = +r.from.slice(0, 2) * 60 + +r.from.slice(3), b = +r.to.slice(0, 2) * 60 + +r.to.slice(3);
+    if (a <= b ? (hm >= a && hm < b) : (hm >= a || hm < b)) lvl = r.level;
+  }
+  return lvl;
+}
+/* Paradas por km según la relación velocidad/flujo libre y el tipo de vía */
+function stopsPerKm(ratio, cls, T) {
+  const base = cls === 'hwy' ? T.stopsHwy : cls === 'urb' ? T.stopsUrb : T.stopsRur;
+  if (ratio >= 0.6) return base * (cls === 'urb' ? 1 + (1 - Math.min(1, ratio)) * 1.5 : 1);
+  if (ratio >= 0.45) return base + (Math.max(base, T.stopsJamMin) - base) * (0.6 - ratio) / 0.15;
+  return Math.max(base, T.stopsJamMin + (T.stopsJamMax - T.stopsJamMin) * clamp((0.45 - ratio) / 0.2, 0, 1));
+}
+
+/* ---------- 4. CLIMA ---------- */
+function hvacKW(T, climate, C) {
+  if (climate === 'off') return 0;
+  const d = T - C.comfortC; let p;
+  if (d > 2.5) p = 0.35 + 0.13 * (d - 2.5);          // refrigeración
+  else if (d < -4.5) p = 0.30 + 0.11 * (-d - 4.5);   // calefacción con bomba de calor
+  else p = 0.12;                                     // solo ventilación
+  if (climate === 'on') p = Math.max(p, 0.35);
+  return Math.min(C.hvacMaxKW, p);
+}
+/* Densidad del aire (kg/m³) corregida por altitud y temperatura */
+function airDensity(alt, tC) {
+  const p = 101325 * Math.pow(1 - 2.25577e-5 * Math.max(0, alt), 5.25588);
+  return p / (287.05 * (tC + 273.15));
+}
+
+/* ---------- 5. SIMULACIÓN TRAMO A TRAMO ----------
+   P  = perfil (buildProfile + finishElevation)
+   tr = tráfico: {type:'pattern', mode:'auto'|'global'|'zones', global, zones}
+              o {type:'tomtom', length, travelTime, noTrafficTime, jams:[{d0,d1,v,mag}], flow:[{d,ratio}]}
+   o  = {S, soc0, payloadKg, climate, mode, regenLevel, departMs, wx(ms,frac), k}                        */
+function simulate(P, tr, o) {
+  const S = o.S, C = S.car, T = S.traffic, MD = S.model, M = S.modes[o.mode] || S.modes.normal;
+  const pts = P.pts, n = P.n, k = o.k || 1;
+  const m = C.mass + C.driver + (o.payloadKg || 0), mi = m * C.rotInertia;
+  const etaR = clamp(C.etaRegen * (S.regenLevels[o.regenLevel] ?? 1), 0, 0.85);
+  const ratioOf = l => T[LEVELS[l].key];
+  const wx = o.wx || (() => null);
+
+  /* 5.1 Velocidad libre y velocidad media con tráfico de cada tramo */
+  const vF = new Array(n), vM = new Array(n), ratio = new Array(n);
+  for (let i = 0; i < n; i++) vF[i] = Math.min(pts[i].v, pts[i].vCurve) * M.v;
+  if (tr.type === 'tomtom') {
+    const sc = P.dist / (tr.length || P.dist);
+    // (a) ajusta el flujo libre al tiempo sin tráfico de TomTom
+    if (tr.noTrafficTime > 0) {
+      let t0 = 0; for (let i = 0; i < n; i++) t0 += pts[i].len / vF[i];
+      const f = clamp(t0 * M.v / tr.noTrafficTime, 0.6, 1.7);
+      for (let i = 0; i < n; i++) vF[i] *= f;
+    }
+    // (b) retenciones con su velocidad real
+    const jam = new Array(n).fill(null);
+    for (const j of tr.jams || []) for (let i = 0; i < n; i++) {
+      const mid = (pts[i].d + pts[i].len / 2) / sc;
+      if (mid >= j.d0 && mid <= j.d1) jam[i] = j;
+    }
+    let tJam = 0, tRest = 0;
+    for (let i = 0; i < n; i++) {
+      if (jam[i]) {
+        const r = jam[i].v > 0 ? clamp(jam[i].v / 3.6 / vF[i], 0.08, 1) : [0.9, 0.7, 0.45, 0.25, 0.5][jam[i].mag || 0];
+        ratio[i] = r; tJam += pts[i].len / (vF[i] * r);
+      } else tRest += pts[i].len / vF[i];
+    }
+    // (c) el resto de la ruta absorbe la diferencia hasta el tiempo total con tráfico
+    const rest = tr.travelTime > 0 && tRest > 0 ? clamp(tRest / Math.max(1, tr.travelTime / M.v - tJam), 0.4, 1) : 1;
+    for (let i = 0; i < n; i++) {
+      if (!jam[i]) {
+        ratio[i] = rest;
+        // (d) muestras de Traffic Flow (velocidad actual / flujo libre)
+        for (const fl of tr.flow || []) if (Math.abs(pts[i].d / sc - fl.d) < fl.win && fl.ratio < 0.85) ratio[i] = Math.min(ratio[i], Math.max(0.1, fl.ratio));
+      }
+      vM[i] = vF[i] * ratio[i];
+    }
+  } else {
+    let t = o.departMs || Date.now();
+    for (let i = 0; i < n; i++) {
+      ratio[i] = ratioOf(levelAt(pts[i].zone, t, S, tr));
+      vM[i] = vF[i] * ratio[i];
+      t += pts[i].len / vM[i] * 1000;
+    }
+  }
+
+  /* 5.2 Velocidad en los nodos con límites de aceleración y frenada (sale y llega parado) */
+  const u = new Array(n + 1);
+  u[0] = 0; u[n] = 0;
+  for (let j = 1; j < n; j++) u[j] = Math.min(vM[j - 1], vM[j]);
+  const acc = T.acc * M.a, dec = T.dec * M.a;
+  for (let j = 0; j < n; j++) u[j + 1] = Math.min(u[j + 1], Math.sqrt(u[j] * u[j] + 2 * acc * pts[j].len));
+  for (let j = n - 1; j >= 0; j--) u[j] = Math.min(u[j], Math.sqrt(u[j + 1] * u[j + 1] + 2 * dec * pts[j].len));
+
+  /* 5.3 Energía de cada tramo */
+  const R = {
+    soc: new Array(n + 1), e: new Array(n), ratio, tCum: new Array(n + 1), gross: 0, recov: 0,
+    bd: { grade: 0, aero: 0, roll: 0, stops: 0, aux: 0 }, time: 0, delay: 0, tC: 0, tF: 0, tN: 0, Tmin: 99, Tmax: -99, headSum: 0
+  };
+  let soc = o.soc0, tMs = o.departMs || Date.now();
+  R.soc[0] = soc; R.tCum[0] = 0;
+  const J2K = 1 / 3.6e6, capWh = C.battUse;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], d = p.len;
+    const vs = Math.max(0.8, Math.min(vM[i], Math.sqrt((u[i] * u[i] + u[i + 1] * u[i + 1]) / 2 + 0.5 * acc * d)));
+    const dt = d / vs;
+    // Meteorología del tramo: temperatura corregida con la altitud y viento de frente/cola
+    const w = wx(tMs, p.d / P.dist), alt = (p.ele + pts[i + 1].ele) / 2;
+    const Ta = w ? w.T - MD.lapse * (alt - w.elev) : MD.defaultT - MD.lapse * alt;
+    const head = w ? w.ws * T.windShelter * Math.cos((w.wd - p.h) * RAD) : 0;
+    const rho = airDensity(alt, Ta), va = vs + head;
+    const g = p.grade || 0, cosT = 1 / Math.sqrt(1 + g * g), sinT = g * cosT;
+    // Trabajo en la rueda (J): pendiente, rodadura, aerodinámica y variación de energía cinética
+    const Wg = m * G * sinT * d, Wr = C.crr * m * G * cosT * d, Wa = 0.5 * rho * C.cd * C.area * va * Math.abs(va) * d;
+    const Wk = 0.5 * mi * (u[i + 1] * u[i + 1] - u[i] * u[i]);
+    const W = Wg + Wr + Wa + Wk;
+    const cold = Ta < MD.coldRef ? Math.min(MD.coldMax, 1 + MD.coldK * (MD.coldRef - Ta)) : 1;
+    const socF = soc >= 98 ? 0.1 : soc > 95 ? 1 - 0.9 * (soc - 95) / 3 : 1;   // batería casi llena: apenas regenera
+    let eb;
+    if (W >= 0) {
+      eb = W / C.etaDrive * cold * k;
+      const pos = Math.max(Wg, 0) + Wr + Math.max(Wa, 0) + Math.max(Wk, 0) || 1, f = eb / pos * J2K;
+      R.bd.grade += Math.max(Wg, 0) * f; R.bd.roll += Wr * f; R.bd.aero += Math.max(Wa, 0) * f; R.bd.stops += Math.max(Wk, 0) * f;
+      R.gross += eb * J2K;
+    } else {
+      const capJ = C.regenMaxKW * 1000 / etaR * dt;          // tope de potencia regenerativa
+      eb = Math.max(W, -capJ) * etaR * socF;
+      R.recov -= eb * J2K;
+    }
+    // Paradas y arranques: ΔE = ½·m·v²·(1/η_tracción − η_regen) por ciclo
+    const ns = stopsPerKm(ratio[i], p.cls, T) * d / 1000, vpk = Math.min(vF[i], T.peakFactor * vM[i]);
+    const es = ns * 0.5 * mi * vpk * vpk * (1 / C.etaDrive - etaR * socF) * M.a * cold * k;
+    // Consumo auxiliar según el tiempo del tramo
+    const ea = (C.auxKW + hvacKW(Ta, o.climate, C) * M.hvac) * 1000 * dt * k;
+    R.bd.stops += es * J2K; R.bd.aux += ea * J2K; R.gross += (es + ea) * J2K;
+    const eSeg = (eb + es + ea) * J2K;
+    R.e[i] = eSeg;
+    soc = Math.min(100, soc - eSeg / capWh * 100);
+    R.soc[i + 1] = soc;
+    R.time += dt; R.tCum[i + 1] = R.time; tMs += dt * 1000;
+    R.delay += Math.max(0, d / vM[i] - d / vF[i]);
+    if (ratio[i] < 0.6) R.tC += dt; else if (ratio[i] >= 0.93) R.tF += dt; else R.tN += dt;
+    if (Ta < R.Tmin) R.Tmin = Ta; if (Ta > R.Tmax) R.Tmax = Ta;
+    R.headSum += head * d;
+  }
+  R.net = R.gross - R.recov;
+  R.dist = P.dist; R.cons = R.net / (P.dist / 1000) * 100;
+  R.socEnd = soc; R.socMin = Math.min(...R.soc);
+  R.asc = P.asc || 0; R.desc = P.desc || 0;
+  R.head = R.headSum / P.dist;
+  R.lvlDom = R.tC / R.time > 0.35 ? 'c' : R.tF / R.time > 0.6 ? 'f' : 'n';
+  R.k = k;
+  if (tr.type === 'tomtom' && tr.travelTime > 0) { R.timeTT = tr.travelTime; R.delayTT = Math.max(0, tr.travelTime - (tr.noTrafficTime || tr.travelTime)); }
+  return R;
+}
+
+/* Factor de calibración personal: media de los últimos viajes, global y por nivel de tráfico */
+function calibFactor(calib, level) {
+  if (!calib || !calib.length) return 1;
+  const avg = a => a.reduce((s, x) => s + x.k, 0) / a.length;
+  const lv = calib.filter(c => c.level === level).slice(-5);
+  return clamp(lv.length >= 2 ? avg(lv) : avg(calib.slice(-8)), 0.7, 1.4);
+}
+
+
+</script>
+<script>
+/* =====================================================================
+   PLANIFICADOR EV3 · TENERIFE — INTERFAZ, MAPA Y LLAMADAS A LAS APIs
+   ===================================================================== */
+'use strict';
+
+/* ---------- 6. ESTADO Y ALMACENAMIENTO ---------- */
+const LS_KEY = 'ev3tf_v1';
+const FAVS0 = [
+  ['San Cristóbal de La Laguna', 28.4874, -16.3159], ['Santa Cruz de Tenerife', 28.4682, -16.2546],
+  ['Aeropuerto Norte (TFN)', 28.4872, -16.3462], ['Aeropuerto Sur (TFS)', 28.0466, -16.5770],
+  ['Puerto de la Cruz', 28.4140, -16.5480], ['Los Cristianos', 28.0520, -16.7170], ['Costa Adeje', 28.0870, -16.7310],
+  ['Garachico', 28.3730, -16.7640], ['Icod de los Vinos', 28.3670, -16.7180], ['Masca', 28.3040, -16.8400],
+  ['Teide · Parador', 28.2236, -16.6262], ['Teide · Teleférico', 28.2545, -16.6255],
+  ['Anaga · Cruz del Carmen', 28.5310, -16.2800], ['Anaga · Taganana', 28.5610, -16.2170],
+  ['Candelaria', 28.3550, -16.3710], ['Puerto de Santiago', 28.2370, -16.8410], ['Punta de Teno', 28.3420, -16.9200]
+].map(f => ({ name: f[0], lat: f[1], lon: f[2] }));
+const FORM0 = {
+  pts: [FAVS0[0], null], traf: 'now', when: 'depart', whenDt: '', man: 'global', manLvl: 'n',
+  zones: { 1: 'n', 2: 'n', 3: 'n', 4: 'n', 5: 'n', 6: 'n', 7: 'f' }, manDt: '', soc0: 80, reserve: 10, pax: 0, cargo: 0,
+  climate: 'auto', mode: 'normal', regen: 2, round: false, retDt: '', retLvl: 'n'
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+function merge(def, got) {            // mezcla lo guardado sobre los valores por defecto
+  if (Array.isArray(def) || typeof def !== 'object' || def === null) return got === undefined ? clone(def) : got;
+  const o = {};
+  for (const k of Object.keys(def)) o[k] = merge(def[k], got ? got[k] : undefined);
+  return o;
+}
+let ST;
+function load() {
+  let g = {};
+  try { g = JSON.parse(localStorage.getItem(LS_KEY) || '{}') || {}; } catch (e) { g = {}; }
+  ST = { S: merge(DEFAULTS, g.S), form: merge(FORM0, g.form), favs: g.favs || clone(FAVS0), hist: g.hist || [], calib: g.calib || [], theme: g.theme || 'dark', chg: g.chg || null };
+}
+function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(ST)); } catch (e) { /* almacenamiento no disponible */ } }
+load();
+const F = () => ST.form;
+
+/* ---------- 7. UTILIDADES ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = (x, d = 0) => (isFinite(x) ? x : 0).toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtMin = s => { const m = Math.round(s / 60); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+const pad = n => String(n).padStart(2, '0');
+const toInput = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const fromInput = s => { const t = s ? new Date(s).getTime() : NaN; return isFinite(t) ? t : null; };
+const hhmm = ms => { const d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+const fmtDay = ms => new Date(ms).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+let toastT;
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = err ? 'err' : ''; t.style.display = 'block';
+  clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', err ? 7000 : 3500);
+}
+function busy(on, tx) { $('busy').classList.toggle('on', !!on); if (tx) $('busyTx').textContent = tx; }
+
+/* fetch con tiempo límite y errores legibles */
+async function fetchJSON(url, opt, label) {
+  if (navigator.onLine === false) throw Object.assign(new Error('Sin conexión a internet'), { offline: true });
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 20000);
+  let r;
+  try { r = await fetch(url, Object.assign({ signal: ctl.signal }, opt || {})); }
+  catch (e) { throw new Error(e.name === 'AbortError' ? `${label}: el servidor no responde` : `${label}: sin conexión o servicio no disponible`); }
+  finally { clearTimeout(tm); }
+  if (!r.ok) {
+    let det = '';
+    try { const j = await r.json(); det = (j.detailedError && j.detailedError.message) || (j.error && (j.error.message || j.error.description || j.error)) || j.message || ''; } catch (e) { }
+    const msg = r.status === 401 || r.status === 403 ? `${label}: API key incorrecta o sin permiso`
+      : r.status === 429 ? `${label}: límite de peticiones alcanzado` : `${label}: error ${r.status}${det ? ' · ' + det : ''}`;
+    throw Object.assign(new Error(msg), { status: r.status, det: String(det) });
+  }
+  return r.json();
+}
+
+/* ---------- 8. MAPA ---------- */
+let map, gRoute, gChg, gPts, cursorMk, layerMode = 'cons', chgOn = false;
+function initMap() {
+  if (!window.L) { $('map').innerHTML = '<div style="padding:20px">No se pudo cargar el mapa (sin conexión).</div>'; return; }
+  map = L.map('map', { zoomControl: false, preferCanvas: true, attributionControl: true })
+    .fitBounds([[TF_BBOX.latMin + 0.02, TF_BBOX.lonMin + 0.05], [TF_BBOX.latMax - 0.02, TF_BBOX.lonMax - 0.02]]);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+  gRoute = L.layerGroup().addTo(map); gPts = L.layerGroup().addTo(map); gChg = L.layerGroup();
+  map.on('click', ev => {
+    const p = { lat: ev.latlng.lat, lon: ev.latlng.lng };
+    if (!inTenerife(p)) return toast('Ese punto está fuera de Tenerife', true);
+    const el = document.createElement('div'); el.className = 'pp';
+    el.innerHTML = '<button data-a="o">Origen aquí</button><button data-a="s">Parada aquí</button><button data-a="d">Destino aquí</button>';
+    const pop = L.popup().setLatLng(ev.latlng).setContent(el).openOn(map);
+    el.onclick = e => {
+      const a = e.target.dataset.a; if (!a) return;
+      const pt = { name: `Punto ${nf(p.lat, 4)}, ${nf(p.lon, 4)}`, lat: p.lat, lon: p.lon }, P = F().pts;
+      if (a === 'o') P[0] = pt; else if (a === 'd') P[P.length - 1] = pt; else P.splice(P.length - 1, 0, pt);
+      map.closePopup(pop); save(); renderWps(); drawPts();
+      fetchJSON(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${p.lat}&lon=${p.lon}&zoom=17&accept-language=es`, null, 'Nominatim')
+        .then(j => { if (j && j.display_name) { pt.name = j.display_name.split(',').slice(0, 2).join(','); save(); renderWps(); } }).catch(() => { });
+    };
+  });
+  drawPts();
+}
+function drawPts() {
+  if (!map) return; gPts.clearLayers();
+  const P = F().pts;
+  P.forEach((p, i) => {
+    if (!p) return;
+    const col = i === 0 ? '#3ddc84' : i === P.length - 1 ? '#ff5247' : '#55bdff';
+    L.circleMarker([p.lat, p.lon], { radius: 8, color: '#fff', weight: 2, fillColor: col, fillOpacity: 1 }).bindTooltip(p.name).addTo(gPts);
+  });
+}
+const CONS_COLS = [[-1, '#3ddc84'], [10, '#a5e35c'], [20, '#ffd84a'], [35, '#ff9838'], [1e9, '#ff5247']];
+function segColor(leg, r, i) {
+  if (layerMode === 'traf') { const q = r.res.ratio[i]; return q >= 0.8 ? '#3ddc84' : q >= 0.55 ? '#ffc233' : '#ff5247'; }
+  const c = r.res.e[i] / r.P.pts[i].len * 1e5;
+  for (const k of CONS_COLS) if (c < k[0]) return k[1];
+}
+function drawRoute(fit) {
+  if (!map || !RES) return;
+  gRoute.clearLayers();
+  const leg = curLeg();
+  leg.routes.forEach((r, k) => {         // alternativas en gris, tocables
+    if (k === leg.sel) return;
+    L.polyline(r.P.pts.map(p => [p.lat, p.lon]), { color: '#8090a0', weight: 5, opacity: .75, dashArray: '6 8' }).addTo(gRoute)
+      .on('click', e => { L.DomEvent.stop(e); selectRoute(k); });
+  });
+  const r = leg.routes[leg.sel], pts = r.P.pts;
+  L.polyline(pts.map(p => [p.lat, p.lon]), { color: '#0a0e13', weight: 9, opacity: .9 }).addTo(gRoute);
+  let cur = null, ll = [];
+  for (let i = 0; i < r.P.n; i++) {       // agrupa tramos consecutivos del mismo color
+    const c = segColor(leg, r, i);
+    if (c !== cur) { if (ll.length) L.polyline(ll, { color: cur, weight: 5, interactive: false }).addTo(gRoute); cur = c; ll = [[pts[i].lat, pts[i].lon]]; }
+    ll.push([pts[i + 1].lat, pts[i + 1].lon]);
+  }
+  if (ll.length) L.polyline(ll, { color: cur, weight: 5, interactive: false }).addTo(gRoute);
+  if (fit) map.fitBounds(L.latLngBounds(pts.map(p => [p.lat, p.lon])), { padding: [24, 24] });
+  const lg = $('legend'); lg.style.display = 'flex';
+  lg.innerHTML = layerMode === 'traf'
+    ? '<span><i style="background:#3ddc84"></i>fluido</span><span><i style="background:#ffc233"></i>denso</span><span><i style="background:#ff5247"></i>atasco</span>'
+    : '<span><i style="background:#3ddc84"></i>regenera</span><span><i style="background:#ffd84a"></i>medio</span><span><i style="background:#ff5247"></i>gasta mucho</span>';
+  $('bLayer').textContent = layerMode === 'traf' ? 'Tráfico' : 'kWh';
+}
+function drawChargers() {
+  if (!map) return; gChg.clearLayers();
+  if (!chgOn || !ST.chg) { map.removeLayer(gChg); return; }
+  for (const c of ST.chg.list)
+    L.circleMarker([c.la, c.lo], { radius: c.kw >= 43 ? 7 : 5, color: '#0a0e13', weight: 1, fillColor: c.kw >= 43 ? '#55bdff' : '#b9c4cf', fillOpacity: .95 })
+      .bindPopup(`<b>${esc(c.t)}</b><br>${esc(c.op || 'Operador desconocido')}<br>${c.kw ? nf(c.kw) + ' kW · ' : ''}${esc(c.cn || '')}${c.n ? ' · ' + c.n + ' puntos' : ''}`).addTo(gChg);
+  gChg.addTo(map);
+}
+
+/* ---------- 9. FORMULARIO DE RUTA ---------- */
+let sugT;
+function renderWps() {
+  const P = F().pts, box = $('wps'); box.innerHTML = '';
+  P.forEach((p, i) => {
+    const kind = i === 0 ? 'org' : i === P.length - 1 ? 'dest' : 'stop';
+    const d = document.createElement('div'); d.className = 'wp ' + kind;
+    d.innerHTML = `<div class="row"><span class="dot"></span>
+      <input type="text" class="grow" placeholder="${kind === 'org' ? 'Origen' : kind === 'dest' ? 'Destino' : 'Parada'}" value="${p ? esc(p.name) : ''}" autocomplete="off" enterkeyhint="search">
+      ${kind === 'org' ? '<button class="btn ic" data-a="gps" aria-label="Mi ubicación">⌖</button>' : ''}
+      <button class="btn ic" data-a="fav" aria-label="Favoritos">★</button>
+      ${kind === 'stop' ? '<button class="btn ic" data-a="del" aria-label="Quitar parada">✕</button>' : ''}</div>`;
+    const inp = d.querySelector('input');
+    inp.oninput = () => { clearTimeout(sugT); sugT = setTimeout(() => suggest(i, inp.value, d), 550); };
+    inp.onfocus = () => inp.select();
+    d.querySelector('[data-a=fav]').onclick = () => openFavs(i);
+    const g = d.querySelector('[data-a=gps]'); if (g) g.onclick = gps;
+    const x = d.querySelector('[data-a=del]'); if (x) x.onclick = () => { P.splice(i, 1); save(); renderWps(); drawPts(); };
+    box.appendChild(d);
+  });
+}
+function setPt(i, pt) {
+  if (!inTenerife(pt)) return toast('Ese lugar está fuera de Tenerife', true);
+  F().pts[i] = pt; save(); renderWps(); drawPts();
+  if (map) map.panTo([pt.lat, pt.lon]);
+}
+async function suggest(i, q, row) {
+  const old = row.querySelector('.sug'); if (old) old.remove();
+  q = q.trim(); if (q.length < 3) return;
+  const fl = ST.favs.filter(f => f.name.toLowerCase().includes(q.toLowerCase())).slice(0, 3).map(f => ({ name: '★ ' + f.name, pt: f }));
+  let list = [];
+  try {
+    const j = await fetchJSON(`https://nominatim.openstreetmap.org/search?format=jsonv2&q=${encodeURIComponent(q)}&viewbox=${TF_BBOX.lonMin},${TF_BBOX.latMax},${TF_BBOX.lonMax},${TF_BBOX.latMin}&bounded=1&limit=6&accept-language=es&countrycodes=es`, null, 'Buscador');
+    list = j.map(o => ({ name: o.display_name.split(',').slice(0, 3).join(','), pt: { name: o.display_name.split(',').slice(0, 2).join(','), lat: +o.lat, lon: +o.lon } }));
+  } catch (e) {
+    if (ST.S.keys.ors) try {    // respaldo: geocodificador de OpenRouteService
+      const j = await fetchJSON(`https://api.openrouteservice.org/geocode/search?api_key=${ST.S.keys.ors}&text=${encodeURIComponent(q)}&boundary.rect.min_lon=${TF_BBOX.lonMin}&boundary.rect.min_lat=${TF_BBOX.latMin}&boundary.rect.max_lon=${TF_BBOX.lonMax}&boundary.rect.max_lat=${TF_BBOX.latMax}&size=6&lang=es`, null, 'Buscador');
+      list = j.features.map(o => ({ name: o.properties.label, pt: { name: o.properties.name, lat: o.geometry.coordinates[1], lon: o.geometry.coordinates[0] } }));
+    } catch (e2) { toast(e.message, true); }
+  }
+  list = fl.concat(list.filter(o => inTenerife(o.pt)));
+  const s = document.createElement('div'); s.className = 'sug';
+  s.innerHTML = list.length ? list.map((o, k) => `<div data-k="${k}">${esc(o.name)}</div>`).join('') : '<div>Sin resultados en Tenerife</div>';
+  s.onclick = e => { const k = e.target.dataset.k; if (k != null) setPt(i, clone(list[k].pt)); else s.remove(); };
+  row.appendChild(s);
+}
+function gps() {
+  if (!navigator.geolocation) return toast('Este navegador no da acceso al GPS', true);
+  busy(true, 'Buscando tu ubicación…');
+  navigator.geolocation.getCurrentPosition(p => {
+    busy(false);
+    setPt(0, { name: 'Mi ubicación', lat: p.coords.latitude, lon: p.coords.longitude });
+  }, e => { busy(false); toast(e.code === 1 ? 'Permiso de ubicación denegado (el GPS necesita abrir la app por https)' : 'No se pudo obtener la ubicación', true); },
+    { enableHighAccuracy: true, timeout: 15000 });
+}
+function sheet(html) { $('sheetIn').innerHTML = html; $('sheet').classList.add('on'); }
+function closeSheet() { $('sheet').classList.remove('on'); }
+function openFavs(i) {
+  const p = F().pts[i];
+  sheet(`<h3>Favoritos</h3>${ST.favs.map((f, k) => `<div class="li"><div class="grow" data-k="${k}"><b data-k="${k}">${esc(f.name)}</b></div><button class="btn sm" data-del="${k}">✕</button></div>`).join('')}
+    ${p ? `<button class="btn" style="width:100%;margin-top:10px" id="favAdd">★ Guardar «${esc(p.name)}» como favorito</button>` : ''}
+    <button class="btn" style="width:100%;margin-top:8px" id="favClose">Cerrar</button>`);
+  $('sheetIn').onclick = e => {
+    const t = e.target;
+    if (t.dataset.k != null) { setPt(i, clone(ST.favs[+t.dataset.k])); closeSheet(); }
+    else if (t.dataset.del != null) { ST.favs.splice(+t.dataset.del, 1); save(); openFavs(i); }
+    else if (t.id === 'favAdd') { ST.favs.push(clone(p)); save(); toast('Guardado en favoritos'); openFavs(i); }
+    else if (t.id === 'favClose') closeSheet();
+  };
+}
+/* Refleja el estado del formulario en pantalla */
+function syncForm() {
+  const f = F();
+  document.querySelectorAll('.seg[data-k]').forEach(s => s.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(f[s.dataset.k]) === b.dataset.v)));
+  const tt = !!ST.S.keys.tomtom;
+  $('trafNow').style.display = f.traf === 'now' ? '' : 'none';
+  $('trafNow').textContent = tt ? 'Tráfico en tiempo real de TomTom en el momento de calcular.' : 'Sin API key de TomTom: se usa el patrón estimado para esta hora. Añade la key en Ajustes para tener tráfico real.';
+  $('trafSched').style.display = f.traf === 'sched' ? '' : 'none';
+  $('trafSchedHint').textContent = tt ? 'Previsión de TomTom (tráfico histórico y predictivo) para ese día y esa hora.' : 'Sin API key de TomTom: patrón estimado según el día de la semana y la hora.';
+  $('trafMan').style.display = f.traf === 'manual' ? '' : 'none';
+  $('manGlobal').style.display = f.man === 'global' ? '' : 'none';
+  $('manZones').style.display = f.man === 'zones' ? '' : 'none';
+  $('manAuto').style.display = f.man === 'auto' ? '' : 'none';
+  $('inWhen').value = f.whenDt || toInput(Date.now() + 36e5); $('inManDt').value = f.manDt || toInput(Date.now());
+  $('rSoc').value = f.soc0; $('oSoc').textContent = f.soc0 + ' %';
+  $('rRes').value = f.reserve; $('oRes').textContent = f.reserve + ' %';
+  $('oPax').textContent = f.pax; $('inCargo').value = f.cargo;
+  $('cRound').checked = f.round; $('roundBox').style.display = f.round ? '' : 'none';
+  $('inRet').value = f.retDt || '';
+  $('retLvlBox').style.display = f.traf === 'manual' && f.man === 'global' ? '' : 'none';
+}
+function renderZones() {
+  $('manZones').innerHTML = ZONES.map(z => `<label class="f">${z.id}. ${esc(z.name)}</label><select data-z="${z.id}">${['f', 'n', 'na', 'c'].map(l => `<option value="${l}"${F().zones[z.id] === l ? ' selected' : ''}>${LEVELS[l].name}</option>`).join('')}</select>`).join('');
+  $('manZones').onchange = e => { F().zones[e.target.dataset.z] = e.target.value; save(); };
+}
+function bindForm() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('.seg[data-k] button');
+    if (b) { const s = b.parentElement; F()[s.dataset.k] = s.dataset.num ? +b.dataset.v : b.dataset.v; save(); syncForm(); return; }
+    const st = e.target.closest('[data-st]');
+    if (st) { F().pax = clamp(F().pax + +st.dataset.d, 0, 4); save(); syncForm(); }
+  });
+  $('rSoc').oninput = e => { F().soc0 = +e.target.value; $('oSoc').textContent = F().soc0 + ' %'; save(); };
+  $('rRes').oninput = e => { F().reserve = +e.target.value; $('oRes').textContent = F().reserve + ' %'; save(); };
+  $('inCargo').onchange = e => { F().cargo = clamp(+e.target.value || 0, 0, 600); save(); };
+  $('inWhen').onchange = e => { F().whenDt = e.target.value; save(); };
+  $('inManDt').onchange = e => { F().manDt = e.target.value; save(); };
+  $('inRet').onchange = e => { F().retDt = e.target.value; save(); };
+  $('cRound').onchange = e => { F().round = e.target.checked; save(); syncForm(); };
+  $('bAddStop').onclick = () => { const P = F().pts; if (P.length >= 6) return toast('Máximo 4 paradas'); P.splice(P.length - 1, 0, null); renderWps(); };
+  $('bSwap').onclick = () => { F().pts.reverse(); save(); renderWps(); drawPts(); };
+  $('bCalc').onclick = calc;
+  $('bMapSize').onclick = () => { document.body.classList.toggle('bigmap'); setTimeout(() => map && map.invalidateSize(), 250); };
+  $('bLayer').onclick = () => { layerMode = layerMode === 'cons' ? 'traf' : 'cons'; drawRoute(); const b = $('lyBtns'); if (b) b.querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.ly === layerMode)); };
+  $('bChg').onclick = toggleChargers;
+  $('sheet').onclick = e => { if (e.target.id === 'sheet') closeSheet(); };
+  document.querySelector('nav').onclick = e => { const b = e.target.closest('button'); if (b) showTab(b.dataset.tab); };
+}
+function showTab(t) {
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('on', s.id === 't-' + t));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  if (t === 'cal') renderCal(); if (t === 'aj') renderAj(); if (t === 'res') setTimeout(drawChart, 30);
+  $('main').scrollTop = 0;
+}
+
+/* ---------- 10. APIs: RUTAS ---------- */
+const iso = ms => new Date(ms).toISOString().slice(0, 19) + 'Z';
+
+/* TomTom Routing (calculateRoute) con tráfico: tiempo real, previsión (departAt/arriveAt) */
+async function routeTomTom(points, o) {
+  const K = ST.S.keys.tomtom, loc = points.map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join(':');
+  const base = `https://api.tomtom.com/routing/1/calculateRoute/${loc}/json?key=${encodeURIComponent(K)}&traffic=${o.traffic !== false}&travelMode=car&routeType=fastest&computeTravelTimeFor=all&sectionType=traffic`
+    + (points.length === 2 && o.alts !== false ? '&maxAlternatives=2' : '')
+    + (o.arriveMs ? '&arriveAt=' + iso(o.arriveMs) : o.departMs ? '&departAt=' + iso(o.departMs) : '');
+  let j;
+  try { j = await fetchJSON(base + '&sectionType=speedLimit', null, 'TomTom'); }
+  catch (e) { if (e.status === 400 && !/depart|arriv|past/i.test(e.det || '')) j = await fetchJSON(base, null, 'TomTom'); else throw e; }
+  if (!j.routes || !j.routes.length) throw new Error('TomTom no ha devuelto ninguna ruta');
+  return j.routes.map(rt => {
+    const pts = []; rt.legs.forEach(l => l.points.forEach(p => pts.push({ lat: p.latitude, lon: p.longitude })));
+    const cum = [0]; for (let i = 1; i < pts.length; i++) cum[i] = cum[i - 1] + hav(pts[i - 1], pts[i]);
+    const jams = [];
+    for (const s of rt.sections || []) {
+      const a = clamp(s.startPointIndex, 0, pts.length - 1), b = clamp(s.endPointIndex, 0, pts.length - 1);
+      if (s.sectionType === 'SPEED_LIMIT' && s.maxSpeedLimitInKmh > 0) for (let i = a; i < b; i++) pts[i].v = s.maxSpeedLimitInKmh / 3.6;
+      else if (s.sectionType === 'TRAFFIC') jams.push({ d0: cum[a], d1: cum[b], v: s.effectiveSpeedInKmh || 0, mag: s.magnitudeOfDelay || 0, delay: s.delayInSeconds || 0, cat: s.simpleCategory });
+    }
+    const sm = rt.summary;
+    return { coords: pts, src: 'TomTom', tt: { length: cum[cum.length - 1], travelTime: sm.travelTimeInSeconds, noTrafficTime: sm.noTrafficTravelTimeInSeconds || 0,
+      delay: sm.trafficDelayInSeconds || 0, departMs: Date.parse(sm.departureTime) || null, jams } };
+  });
+}
+/* OpenRouteService: rutas sin tráfico con alternativas, elevación y tipo de vía */
+async function routeORS(points) {
+  const body = { coordinates: points.map(p => [p.lon, p.lat]), elevation: true, instructions: true, extra_info: ['waytype', 'steepness'] };
+  if (points.length === 2) body.alternative_routes = { target_count: 3, weight_factor: 1.6, share_factor: 0.6 };
+  const j = await fetchJSON('https://api.openrouteservice.org/v2/directions/driving-car/geojson',
+    { method: 'POST', headers: { Authorization: ST.S.keys.ors, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 'OpenRouteService');
+  return j.features.map(ft => {
+    const pts = ft.geometry.coordinates.map(c => ({ lat: c[1], lon: c[0], ele: c[2] }));
+    for (const sg of ft.properties.segments || []) for (const s of sg.steps || [])
+      if (s.duration > 0 && s.distance > 0) { const v = clamp(s.distance / s.duration, 3, 36); for (let i = s.way_points[0]; i < s.way_points[1]; i++) pts[i].v = v; }
+    const wt = ft.properties.extras && ft.properties.extras.waytype;
+    if (wt) for (const [a, b, val] of wt.values) if (val === 3) for (let i = a; i < b; i++) pts[i].urb = true;   // 3 = calle
+    return { coords: pts, src: 'OpenRouteService' };
+  });
+}
+/* OSRM (servidor público de demostración): respaldo sin key, con velocidad por tramo */
+async function routeOSRM(points) {
+  const loc = points.map(p => p.lon.toFixed(5) + ',' + p.lat.toFixed(5)).join(';');
+  const j = await fetchJSON(`https://router.project-osrm.org/route/v1/driving/${loc}?overview=full&geometries=geojson&annotations=speed&alternatives=${points.length === 2 ? 3 : 'false'}`, null, 'OSRM');
+  if (j.code !== 'Ok' || !j.routes.length) throw new Error('OSRM no encuentra ruta entre esos puntos');
+  return j.routes.map(rt => {
+    const pts = rt.geometry.coordinates.map(c => ({ lat: c[1], lon: c[0] }));
+    const sp = [].concat(...rt.legs.map(l => (l.annotation && l.annotation.speed) || []));
+    if (sp.length === pts.length - 1) sp.forEach((v, i) => { if (v > 0) pts[i].v = clamp(v, 3, 36); });
+    else { const v = rt.distance / rt.duration; pts.forEach(p => p.v = v); }
+    return { coords: pts, src: 'OSRM' };
+  });
+}
+async function routeFree(points, notes) {
+  if (ST.S.keys.ors) try { return await routeORS(points); } catch (e) { notes.push(e.message + ' → se usa OSRM'); }
+  try { return await routeOSRM(points); } catch (e) { notes.push(e.message); }
+  if (ST.S.keys.tomtom) return (await routeTomTom(points, { traffic: false })).map(r => ({ coords: r.coords, src: 'TomTom (sin tráfico)' }));
+  throw new Error(navigator.onLine === false ? 'Sin conexión a internet: no se puede calcular la ruta' : 'Ningún servicio de rutas responde. Revisa la conexión o añade una API key en Ajustes.');
+}
+/* Traffic Flow de TomTom: velocidad actual frente a flujo libre en puntos de la ruta */
+async function flowSamples(P) {
+  const N = 10, out = [], K = ST.S.keys.tomtom, win = P.dist / N / 2;
+  await Promise.all([...Array(N)].map(async (_, k) => {
+    const d = (k + 0.5) * P.dist / N, p = P.pts[Math.min(P.n, Math.round(d / P.dist * P.n))];
+    try {
+      const j = await fetchJSON(`https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/12/json?key=${encodeURIComponent(K)}&point=${p.lat.toFixed(5)},${p.lon.toFixed(5)}&unit=KMPH`, null, 'TomTom Flow');
+      const f = j.flowSegmentData; if (f && f.freeFlowSpeed > 0 && !f.roadClosure) out.push({ d, win, ratio: f.currentSpeed / f.freeFlowSpeed });
+    } catch (e) { }
+  }));
+  return out;
+}
+
+/* ---------- 11. APIs: ELEVACIÓN, TIEMPO Y CARGADORES ---------- */
+const ELEC = new Map(), WXC = {};
+async function ensureElevation(P, notes) {
+  if (P.hasEle) { finishElevation(P); return; }
+  const n = P.n, key = [n, P.dist.toFixed(0), P.pts[0].lat.toFixed(4), P.pts[n >> 1].lon.toFixed(4), P.pts[n].lat.toFixed(4)].join('|');
+  const stepI = Math.max(1, Math.ceil((n + 1) / 500)), idx = [];
+  for (let i = 0; i <= n; i += stepI) idx.push(i);
+  if (idx[idx.length - 1] !== n) idx.push(n);
+  const q = idx.map(i => P.pts[i]);
+  let el = ELEC.get(key) || null;
+  if (!el && ST.S.keys.ors) try {            // 1) OpenRouteService /elevation/line
+    const j = await fetchJSON('https://api.openrouteservice.org/elevation/line', { method: 'POST', headers: { Authorization: ST.S.keys.ors, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format_in: 'polyline', format_out: 'polyline', geometry: q.map(p => [p.lon, p.lat]) }) }, 'OpenRouteService');
+    if (j.geometry.length === q.length) el = j.geometry.map(g => g[2]);
+  } catch (e) { }
+  if (!el) try {                             // 2) Open-Meteo Elevation (Copernicus 90 m, sin key)
+    const parts = []; for (let i = 0; i < q.length; i += 100) parts.push(q.slice(i, i + 100));
+    const rs = await Promise.all(parts.map(c => fetchJSON(`https://api.open-meteo.com/v1/elevation?latitude=${c.map(p => p.lat.toFixed(5)).join(',')}&longitude=${c.map(p => p.lon.toFixed(5)).join(',')}`, null, 'Open-Meteo')));
+    el = [].concat(...rs.map(r => r.elevation));
+  } catch (e) { el = null; }
+  if (!el) try {                             // 3) Open-Topo-Data (EU-DEM 25 m; 1 petición/s)
+    el = [];
+    for (let i = 0; i < q.length; i += 100) {
+      const j = await fetchJSON('https://api.opentopodata.org/v1/eudem25m?locations=' + q.slice(i, i + 100).map(p => p.lat.toFixed(5) + ',' + p.lon.toFixed(5)).join('|'), null, 'Open-Topo-Data');
+      el.push(...j.results.map(r => r.elevation || 0));
+      if (i + 100 < q.length) await new Promise(r => setTimeout(r, 1100));
+    }
+  } catch (e) { el = null; }
+  if (!el || el.length !== q.length) {
+    notes.push('Sin datos de elevación: esta estimación ignora las pendientes y es poco fiable.');
+    P.pts.forEach(p => p.ele = 0); P.noEle = true;
+  } else {
+    ELEC.set(key, el);
+    for (let k = 0; k < idx.length - 1; k++) for (let i = idx[k]; i <= idx[k + 1]; i++) {
+      const f = (i - idx[k]) / (idx[k + 1] - idx[k] || 1); P.pts[i].ele = el[k] + (el[k + 1] - el[k]) * f;
+    }
+  }
+  finishElevation(P);
+}
+/* Open-Meteo: previsión horaria en origen, mitad y destino. Devuelve wx(ms, fracción de ruta) */
+async function getWeather(P) {
+  const L = [P.pts[0], P.pts[P.n >> 1], P.pts[P.n]], key = L.map(p => p.lat.toFixed(2) + ',' + p.lon.toFixed(2)).join('|');
+  if (!WXC[key] || Date.now() - WXC[key].at > 18e5) {
+    let j = await fetchJSON(`https://api.open-meteo.com/v1/forecast?latitude=${L.map(p => p.lat.toFixed(3)).join(',')}&longitude=${L.map(p => p.lon.toFixed(3)).join(',')}&hourly=temperature_2m,wind_speed_10m,wind_direction_10m&wind_speed_unit=ms&timeformat=unixtime&forecast_days=16`, null, 'Open-Meteo');
+    if (!Array.isArray(j)) j = [j];
+    WXC[key] = { at: Date.now(), loc: j.map(o => ({ elev: o.elevation || 0, t0: o.hourly.time[0], T: o.hourly.temperature_2m, ws: o.hourly.wind_speed_10m, wd: o.hourly.wind_direction_10m })) };
+  }
+  const loc = WXC[key].loc;
+  return (ms, frac) => {
+    const a = frac < 0.5 ? loc[0] : loc[1], b = frac < 0.5 ? loc[1] : loc[2], f = frac < 0.5 ? frac * 2 : frac * 2 - 1;
+    const i = Math.round((ms / 1000 - a.t0) / 3600);
+    if (i < 0 || i >= a.T.length || a.T[i] == null || b.T[i] == null) return null;
+    const Ta = a.T[i] + 0.0065 * a.elev, Tb = b.T[i] + 0.0065 * b.elev;     // a nivel del mar; el modelo la corrige con la altitud
+    return { T: Ta + (Tb - Ta) * f, elev: 0, ws: a.ws[i] + (b.ws[i] - a.ws[i]) * f, wd: f < 0.5 ? a.wd[i] : b.wd[i] };
+  };
+}
+/* Open Charge Map: puntos de recarga de Tenerife (se guardan 7 días) */
+async function loadChargers(force) {
+  if (!ST.S.keys.ocm) return null;
+  if (ST.chg && !force && Date.now() - ST.chg.at < 6048e5) return ST.chg.list;
+  const j = await fetchJSON(`https://api.openchargemap.io/v3/poi/?output=json&boundingbox=(${TF_BBOX.latMax},${TF_BBOX.lonMin}),(${TF_BBOX.latMin},${TF_BBOX.lonMax})&maxresults=600&compact=false&verbose=false&key=${encodeURIComponent(ST.S.keys.ocm)}`, null, 'Open Charge Map');
+  const list = j.filter(o => o.AddressInfo).map(o => {
+    const cs = o.Connections || [], kw = Math.max(0, ...cs.map(c => c.PowerKW || 0));
+    return { t: o.AddressInfo.Title || 'Punto de recarga', la: o.AddressInfo.Latitude, lo: o.AddressInfo.Longitude, op: o.OperatorInfo && o.OperatorInfo.Title,
+      kw, cn: [...new Set(cs.map(c => c.ConnectionType && c.ConnectionType.Title).filter(Boolean))].join(', '), n: o.NumberOfPoints || cs.reduce((s, c) => s + (c.Quantity || 1), 0) };
+  });
+  ST.chg = { at: Date.now(), list }; save();
+  return list;
+}
+async function toggleChargers() {
+  if (!ST.S.keys.ocm) return toast('Para ver cargadores, añade la API key de Open Charge Map en Ajustes');
+  chgOn = !chgOn;
+  if (chgOn) try { busy(true, 'Cargando puntos de recarga…'); await loadChargers(); } catch (e) { toast(e.message, true); chgOn = false; } finally { busy(false); }
+  drawChargers();
+}
+/* Cargadores cercanos a la ruta a los que se llega con batería */
+function nearChargers(r) {
+  if (!ST.chg) return [];
+  const pts = r.P.pts, out = [];
+  for (const c of ST.chg.list) {
+    let best = 1e9, bi = 0;
+    for (let i = 0; i <= r.P.n; i += 4) { const d = Math.hypot((c.lo - pts[i].lon) * KX, (c.la - pts[i].lat) * KY); if (d < best) { best = d; bi = i; } }
+    if (best <= 4 && r.res.soc[bi] > 3) out.push({ c, dist: best, km: pts[bi].d / 1000, soc: r.res.soc[bi] });
+  }
+  return out.sort((a, b) => (b.c.kw >= 43) - (a.c.kw >= 43) || a.dist - b.dist).slice(0, 3);
+}
+
+/* ---------- 12. CÁLCULO DE UN TRAYECTO ---------- */
+let RES = null;                       // {out, ret, view}
+const curLeg = () => RES[RES.view];
+function simOpts(soc0, departMs, wx, k) {
+  const f = F();
+  return { S: ST.S, soc0, payloadKg: f.pax * ST.S.car.paxKg + f.cargo, climate: f.climate, mode: f.mode, regenLevel: f.regen, departMs, wx, k };
+}
+/* Simula una ruta aplicando después el factor de calibración del nivel de tráfico dominante */
+function runSim(P, tr, soc0, departMs, wx) {
+  const r0 = simulate(P, tr, simOpts(soc0, departMs, wx, 1));
+  const k = calibFactor(ST.calib, r0.lvlDom);
+  const r = Math.abs(k - 1) > 0.001 ? simulate(P, tr, simOpts(soc0, departMs, wx, k)) : r0;
+  r.grossRaw = r0.gross;
+  return r;
+}
+function patternSpec(w) {
+  const f = F();
+  if (w.kind === 'manual' && f.man === 'global') return { type: 'pattern', mode: 'global', global: w.lvl || f.manLvl };
+  if (w.kind === 'manual' && f.man === 'zones') return { type: 'pattern', mode: 'zones', zones: f.zones };
+  return { type: 'pattern', mode: 'auto' };
+}
+async function planLeg(points, w, soc0) {
+  const S = ST.S, notes = [];
+  let useTT = (w.kind === 'now' || w.kind === 'sched') && !!S.keys.tomtom, raws = null;
+  if (useTT) try {
+    raws = await routeTomTom(points, { departMs: w.live ? null : w.departMs, arriveMs: w.arriveMs });
+  } catch (e) {
+    if (e.offline) throw e;
+    notes.push((/depart|arriv|past|range/i.test(e.det || '') ? 'TomTom: fecha fuera del rango de previsión' : e.message) + ' → se usa el patrón estimado.');
+    useTT = false;
+  }
+  if (!raws) raws = await routeFree(points, notes);
+  raws = raws.slice(0, 3);
+  const leg = { points, w, useTT, notes, routes: [], sel: 0, soc0 };
+  for (const raw of raws) {
+    const P = buildProfile(raw.coords, S);
+    if (P.dist < 150) throw new Error('El origen y el destino están en el mismo sitio');
+    await ensureElevation(P, notes);
+    leg.routes.push({ P, src: raw.src, tt: raw.tt });
+  }
+  try { leg.wx = await getWeather(leg.routes[0].P); } catch (e) { leg.wx = null; notes.push('Sin datos meteorológicos (' + e.message + '): se usan valores medios.'); }
+  for (const r of leg.routes) {
+    if (useTT) {
+      r.tr = Object.assign({ type: 'tomtom' }, r.tt);
+      r.departMs = r.tt.departMs || w.departMs || Date.now();
+      if (w.live && S.model.flow && r === leg.routes[0]) { r.tr.flow = await flowSamples(r.P); r.tr.length = r.tt.length; }
+    } else {
+      r.tr = patternSpec(w);
+      r.departMs = w.departMs || Date.now();
+      if (w.arriveMs) for (let k = 0; k < 2; k++) {      // llegar a una hora: se retrocede el tiempo estimado
+        r.departMs = w.arriveMs - simulate(r.P, r.tr, simOpts(soc0, r.departMs, leg.wx, 1)).time * 1000;
+      }
+    }
+    r.res = runSim(r.P, r.tr, soc0, r.departMs, leg.wx);
+  }
+  const r0 = leg.routes[0];
+  if (leg.wx && !leg.wx(r0.departMs, 0)) { notes.push('Previsión meteorológica fuera de rango (máx. 16 días): se usan valores medios.'); leg.wxOut = true; }
+  leg.srcLabel = useTT ? (w.live ? 'TomTom en tiempo real' : 'TomTom previsión') : (r0.tr.mode === 'auto' ? 'Patrón estimado' : r0.tr.mode === 'zones' ? 'Manual por zonas' : 'Manual · ' + LEVELS[r0.tr.global].name);
+  // la más rápida primero; se marca también la más eficiente
+  leg.fast = leg.routes.reduce((b, r, i, a) => tOf(r) < tOf(a[b]) ? i : b, 0);
+  leg.eff = leg.routes.reduce((b, r, i, a) => r.res.net < a[b].res.net - 0.01 ? i : b, 0);
+  leg.sel = leg.fast;
+  return leg;
+}
+const tOf = r => r.res.timeTT || r.res.time;
+function whenFromForm() {
+  const f = F(), now = Date.now();
+  if (f.traf === 'now') return { kind: 'now', departMs: now, live: true };
+  if (f.traf === 'sched') {
+    const t = fromInput($('inWhen').value) || now;
+    return f.when === 'arrive' ? { kind: 'sched', arriveMs: t } : { kind: 'sched', departMs: t };
+  }
+  return { kind: 'manual', departMs: f.man === 'auto' ? (fromInput($('inManDt').value) || now) : now };
+}
+async function calc() {
+  const pts = F().pts;
+  if (pts.some(p => !p)) return toast('Falta elegir el origen, el destino o alguna parada', true);
+  if (pts.some(p => !inTenerife(p))) return toast('Ruta fuera de Tenerife: esta app solo calcula dentro de la isla', true);
+  const w = whenFromForm();
+  if (w.kind === 'sched' && (w.departMs || w.arriveMs) < Date.now() - 6e5) return toast('La fecha programada ya ha pasado', true);
+  $('bCalc').disabled = true; busy(true, 'Calculando ruta, relieve y tráfico…');
+  try {
+    if (ST.S.keys.ocm && !ST.chg) loadChargers().catch(() => { });
+    const out = await planLeg(pts, w, F().soc0);
+    let ret = null;
+    if (F().round) {
+      busy(true, 'Calculando la vuelta…');
+      const sel = out.routes[out.sel], arr = sel.departMs + tOf(sel) * 1000;
+      let retMs = fromInput($('inRet').value);
+      if (!retMs || retMs < arr) { retMs = arr + 72e5; if ($('inRet').value) out.notes.push('La hora de vuelta era anterior a la llegada: se usa 2 h después de llegar.'); }
+      ret = await planLeg(pts.slice().reverse(), Object.assign({}, w, { departMs: retMs, arriveMs: null, live: false, lvl: F().retLvl }), sel.res.socEnd);
+    }
+    RES = { out, ret, view: 'out' };
+    pushHist(out, 'Ida'); if (ret) pushHist(ret, 'Vuelta');
+    renderRes(); showTab('res'); drawRoute(true);
+  } catch (e) { toast(e.message || 'Error inesperado', true); console.error(e); }
+  finally { busy(false); $('bCalc').disabled = false; }
+}
+function legLabel(leg) { return leg.points[0].name.split(',')[0] + ' → ' + leg.points[leg.points.length - 1].name.split(',')[0]; }
+function pushHist(leg, tag) {
+  const r = leg.routes[leg.sel], x = r.res;
+  ST.hist.unshift({ id: Date.now() + Math.random(), at: r.departMs, label: legLabel(leg) + (RES.ret ? ' (' + tag + ')' : ''), dist: x.dist, grossRaw: x.grossRaw, recov: x.recov, cons: x.cons, lvl: x.lvlDom, src: leg.srcLabel });
+  ST.hist = ST.hist.slice(0, 20); save();
+}
+function selectRoute(k) {
+  const leg = curLeg(); leg.sel = k;
+  if (RES.view === 'out' && RES.ret) {     // la vuelta parte con la batería con la que llega la ida elegida
+    const s0 = leg.routes[k].res.socEnd; RES.ret.soc0 = s0;
+    for (const r of RES.ret.routes) r.res = runSim(r.P, r.tr, s0, r.departMs, RES.ret.wx);
+  }
+  renderRes(); drawRoute(true);
+}
+
+/* ---------- 13. RESULTADOS ---------- */
+function confidence(leg, r) {
+  let c = leg.useTT ? (leg.w.live ? 8 : 10 + Math.min(6, Math.max(0, (r.departMs - Date.now()) / 864e5) * 0.6)) : (r.tr.mode === 'auto' ? 15 : 12);
+  c -= Math.min(4, ST.calib.length);
+  if (r.P.noEle) c += 10; if (!leg.wx || leg.wxOut) c += 2; if (r.P.pts.some(p => p.vGuess)) c += 2;
+  return Math.max(5, Math.round(c));
+}
+function renderRes() {
+  if (!RES) return;
+  const leg = curLeg(), r = leg.routes[leg.sel], x = r.res, f = F(), C = ST.S.car;
+  const time = tOf(r), delay = x.delayTT != null ? x.delayTT : x.delay, conf = confidence(leg, r);
+  const used = leg.soc0 - x.socEnd, band = Math.abs(used) * conf / 100;
+  const col = x.socEnd < f.reserve ? 'var(--bad)' : x.socEnd < f.reserve + 8 ? 'var(--warn)' : 'var(--good)';
+  const wNow = leg.wx && leg.wx(r.departMs, 0.5);
+  let h = '';
+  if (RES.ret) h += `<div class="seg" id="legSeg"><button data-leg="out" class="${RES.view === 'out' ? 'on' : ''}">Ida</button><button data-leg="ret" class="${RES.view === 'ret' ? 'on' : ''}">Vuelta</button></div>`;
+  h += `<div class="card hero">
+    <div style="margin-bottom:8px"><span class="badge">Tráfico: ${esc(leg.srcLabel)}</span></div>
+    <div class="lbl">${esc(legLabel(leg))} · batería al llegar</div>
+    <div class="pct" style="color:${col}">${nf(Math.max(0, x.socEnd))}<small> %</small></div>
+    <div class="bar"><i style="width:${clamp(x.socEnd, 0, 100)}%;background:${col}"></i><u style="left:${f.reserve}%"></u></div>
+    <div class="hint">Sales con ${nf(leg.soc0)} % a las ${hhmm(r.departMs)} (${fmtDay(r.departMs)}) · llegas a las ${hhmm(r.departMs + time * 1000)}</div>
+    <div class="hint"><b style="color:var(--tx)">Confianza ± ${conf} %</b> sobre el consumo → llegada entre ${nf(clamp(x.socEnd - band, 0, 100))} y ${nf(clamp(x.socEnd + band, 0, 100))} %${x.k !== 1 ? ` · calibración ×${nf(x.k, 2)}` : ''}</div>
+  </div>`;
+  if (x.socMin <= 0) h += `<div class="alert"><b>No llegas.</b> La batería se agota antes del destino con estas condiciones.</div>`;
+  if (x.socEnd < f.reserve) {
+    const need = (f.reserve - Math.max(0, x.socEnd)) / 100 * C.battUse + (x.socMin < 0 ? -x.socMin / 100 * C.battUse : 0), near = nearChargers(r);
+    h += `<div class="alert"><b>Llegas por debajo de la reserva (${f.reserve} %).</b> Te faltan ${nf(need, 1)} kWh (≈ +${nf(need / C.battUse * 100)} % de batería).`;
+    if (near.length) h += near.map(o => { const p = Math.min(o.c.kw || 7.4, o.c.kw >= 43 ? 128 : 11); return `<div class="li"><div class="grow"><b>${esc(o.c.t)}</b><small>${esc(o.c.op || 'Operador desconocido')} · ${o.c.kw ? nf(o.c.kw) + ' kW' : 'potencia sin datos'} · ${esc(o.c.cn || '')}</small><small>km ${nf(o.km, 1)} de la ruta (a ${nf(o.dist, 1)} km) · llegas con ${nf(o.soc)} % · carga ${nf(need, 1)} kWh ≈ ${nf(need / (p * 0.9) * 60)} min</small></div><button class="btn sm" data-go="${o.c.la},${o.c.lo}">Ver</button></div>`; }).join('');
+    else h += `<div class="hint">${ST.S.keys.ocm ? (ST.chg ? 'No hay cargadores registrados a menos de 4 km de la ruta. Sal con más batería o cambia de ruta.' : 'Pulsa ⚡ en el mapa para cargar los puntos de recarga.') : 'Añade la API key de Open Charge Map en Ajustes para ver los cargadores cercanos a la ruta.'}</div>`;
+    h += `</div>`;
+  }
+  if (RES.ret) { const b = RES.ret.routes[RES.ret.sel].res; h += `<div class="card"><h3>Ida y vuelta</h3><div class="row" style="justify-content:space-between"><div>Ida: ${nf(RES.out.soc0)} → <b>${nf(RES.out.routes[RES.out.sel].res.socEnd)} %</b><br>Vuelta (${hhmm(RES.ret.routes[RES.ret.sel].departMs)}): → <b>${nf(b.socEnd)} %</b></div><div style="text-align:right"><span class="hint">Al volver a casa</span><br><b style="font-size:34px;color:${b.socEnd < f.reserve ? 'var(--bad)' : 'var(--good)'}">${nf(Math.max(0, b.socEnd))} %</b></div></div></div>`; }
+  h += `<div class="card"><div class="grid">
+    <div class="st"><span>Consumidos</span><b>${nf(x.gross, 1)}</b> <em>kWh</em></div>
+    <div class="st"><span>Recuperados en bajadas</span><b style="color:var(--good)">${nf(x.recov, 1)}</b> <em>kWh</em></div>
+    <div class="st"><span>Consumo medio (neto ${nf(x.net, 1)} kWh)</span><b>${nf(x.cons, 1)}</b> <em>kWh/100 km</em></div>
+    <div class="st"><span>Distancia</span><b>${nf(x.dist / 1000, 1)}</b> <em>km</em></div>
+    <div class="st"><span>Tiempo</span><b>${fmtMin(time)}</b>${delay > 45 ? `<br><em style="color:var(--warn)">+${fmtMin(delay)} por tráfico</em>` : '<br><em>sin retraso</em>'}</div>
+    <div class="st"><span>Desnivel acumulado</span><b>↑${nf(x.asc)}</b> <em>m</em> <b>↓${nf(x.desc)}</b> <em>m</em></div>
+    <div class="st"><span>Temperatura en ruta</span><b>${nf(x.Tmin)}–${nf(x.Tmax)}</b> <em>°C</em></div>
+    <div class="st"><span>Viento</span><b>${wNow ? nf(wNow.ws * 3.6) : '—'}</b> <em>km/h${wNow ? (x.head > 0.3 ? ' · de cara' : x.head < -0.3 ? ' · de cola' : ' · lateral') : ''}</em></div>
+  </div></div>`;
+  if (leg.routes.length > 1) h += `<div class="card"><h3>Rutas alternativas</h3><div class="alt">${leg.routes.map((a, k) => `<button data-alt="${k}" class="${k === leg.sel ? 'on' : ''}"><b>${fmtMin(tOf(a))} · ${nf(a.res.net, 1)} kWh</b><span>${nf(a.res.dist / 1000, 1)} km · llegas con ${nf(Math.max(0, a.res.socEnd))} %</span><i>${[k === leg.fast ? 'Más rápida' : '', k === leg.eff ? 'Más eficiente' : ''].filter(Boolean).join(' · ') || '&nbsp;'}</i></button>`).join('')}</div></div>`;
+  h += `<div class="card"><h3>Perfil, batería y tráfico</h3>
+    <div class="seg" id="lyBtns"><button data-ly="cons" class="${layerMode === 'cons' ? 'on' : ''}">Mapa por consumo</button><button data-ly="traf" class="${layerMode === 'traf' ? 'on' : ''}">Mapa por tráfico</button></div>
+    <canvas id="cv" height="200"></canvas><div class="hint" id="cvInfo">Toca el gráfico para ver cada punto en el mapa. Gris: relieve · línea: % de batería · franjas rojas: congestión.</div></div>`;
+  // Desglose de energía
+  const bd = [['Pendiente (subidas)', x.bd.grade, '#ff9838'], ['Aerodinámica', x.bd.aero, '#55bdff'], ['Rodadura', x.bd.roll, '#b9c4cf'], ['Paradas, arranques y cambios de ritmo', x.bd.stops, '#ff5247'], ['Climatización y electrónica', x.bd.aux, '#c58cff'], ['Recuperado (regeneración)', -x.recov, '#3ddc84']];
+  const mx = Math.max(...bd.map(b => Math.abs(b[1])), 0.01);
+  h += `<details><summary>En qué se va la energía</summary><div><div class="bd">${bd.map(b => `<span>${b[0]}</span><i style="width:${Math.abs(b[1]) / mx * 100}%;background:${b[2]}"></i><b>${b[1] < 0 ? '−' : ''}${nf(Math.abs(b[1]), 2)} kWh</b>`).join('')}</div>
+    <div class="hint">Peso total ${nf(C.mass + C.driver + f.pax * C.paxKg + f.cargo)} kg · referencia WLTP ${nf(C.wltpCons, 1)} kWh/100 km.</div></div></details>`;
+  // Comparativa en los tres niveles de tráfico
+  h += `<details><summary>Mismo trayecto con cada nivel de tráfico</summary><div><table><tr><th>Nivel</th><th>kWh</th><th>% al llegar</th><th>Tiempo</th></tr>${['f', 'n', 'c'].map(l => { const q = runSim(r.P, { type: 'pattern', mode: 'global', global: l }, leg.soc0, r.departMs, leg.wx); return `<tr><td>${LEVELS[l].name}</td><td>${nf(q.net, 1)}</td><td>${nf(Math.max(0, q.socEnd))} %</td><td>${fmtMin(q.time)}</td></tr>`; }).join('')}</table></div></details>`;
+  h += `<div class="card"><h3>Mejor hora para salir</h3><div class="hint">Tiempo y consumo cada 30 minutos el ${fmtDay(r.departMs)}, de 6:00 a 22:00${leg.useTT ? ' (previsión de TomTom: unas 30 consultas)' : ' (patrón estimado)'}.</div>
+    <button class="btn" style="width:100%" id="bBest">Calcular mejor hora</button><canvas id="cvBest" height="150" style="display:none;margin-top:8px"></canvas><div id="bestTx"></div></div>`;
+  if (leg.notes.length) h += `<div class="card"><h3>Avisos</h3>${[...new Set(leg.notes)].map(n => `<div class="note">${esc(n)}</div>`).join('')}</div>`;
+  h += `<div class="hint" style="text-align:center">Ruta: ${esc(r.src)} · relieve y tiempo: ${r.P.noEle ? 'sin relieve' : 'modelo digital del terreno'}, Open-Meteo · ${r.P.n} tramos de ~${ST.S.model.step} m<br>¿Ya has hecho el viaje? Apunta el consumo real en «Calibrar».</div>`;
+  const box = $('res'); box.innerHTML = h;
+  box.onclick = e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.leg) { RES.view = t.dataset.leg; renderRes(); drawRoute(true); }
+    else if (t.dataset.alt != null) selectRoute(+t.dataset.alt);
+    else if (t.dataset.ly) { layerMode = t.dataset.ly; drawRoute(); t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t)); }
+    else if (t.dataset.go) { const [la, lo] = t.dataset.go.split(',').map(Number); if (!chgOn) { chgOn = true; drawChargers(); } map.setView([la, lo], 15); }
+    else if (t.id === 'bBest') bestTime();
+  };
+  bindChart(); setTimeout(drawChart, 30);
+}
+
+/* Gráfico propio: perfil de elevación + % de batería + franjas de congestión */
+let cvSel = -1;
+function drawChart() {
+  const cv = $('cv'); if (!cv || !RES || !cv.offsetWidth) return;
+  const leg = curLeg(), r = leg.routes[leg.sel], pts = r.P.pts, n = r.P.n, x = r.res;
+  const dpr = window.devicePixelRatio || 1, W = cv.offsetWidth, H = 200;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.body), cTx = css.getPropertyValue('--mu'), cAc = css.getPropertyValue('--ac'), cLine = css.getPropertyValue('--line');
+  const L = 50, Rt = 38, Tp = 8, B = 22, pw = W - L - Rt, ph = H - Tp - B;
+  let e0 = 1e9, e1 = -1e9; for (const p of pts) { if (p.ele < e0) e0 = p.ele; if (p.ele > e1) e1 = p.ele; }
+  if (e1 - e0 < 50) e1 = e0 + 50; e0 = Math.max(0, e0 - (e1 - e0) * 0.08);
+  const X = i => L + pts[i].d / r.P.dist * pw, YE = e => Tp + ph - (e - e0) / (e1 - e0) * ph, YS = s => Tp + ph - clamp(s, 0, 100) / 100 * ph;
+  cv._geo = { L, pw, n, dist: r.P.dist };
+  // franjas de congestión
+  for (let i = 0; i < n;) {                 // tramos contiguos del mismo nivel en una sola franja
+    const lv = x.ratio[i] < 0.55 ? 2 : x.ratio[i] < 0.8 ? 1 : 0; let j = i;
+    while (j < n && (x.ratio[j] < 0.55 ? 2 : x.ratio[j] < 0.8 ? 1 : 0) === lv) j++;
+    if (lv) { g.fillStyle = lv === 2 ? 'rgba(255,82,71,.30)' : 'rgba(255,194,51,.22)'; g.fillRect(X(i), Tp, Math.max(1.5, X(j) - X(i)), ph); }
+    i = j;
+  }
+  // relieve
+  g.beginPath(); g.moveTo(L, Tp + ph); for (let i = 0; i <= n; i++) g.lineTo(X(i), YE(pts[i].ele)); g.lineTo(L + pw, Tp + ph); g.closePath();
+  g.fillStyle = 'rgba(140,160,180,.38)'; g.fill();
+  // reserva y batería
+  g.strokeStyle = cTx; g.setLineDash([4, 4]); g.lineWidth = 1; g.beginPath(); g.moveTo(L, YS(F().reserve)); g.lineTo(L + pw, YS(F().reserve)); g.stroke(); g.setLineDash([]);
+  g.strokeStyle = cAc; g.lineWidth = 2.5; g.beginPath(); for (let i = 0; i <= n; i++) i ? g.lineTo(X(i), YS(x.soc[i])) : g.moveTo(X(i), YS(x.soc[i])); g.stroke();
+  // ejes
+  g.strokeStyle = cLine; g.lineWidth = 1; g.strokeRect(L, Tp, pw, ph);
+  g.fillStyle = cTx; g.font = '11px system-ui'; g.textAlign = 'right';
+  g.fillText(nf(e1) + ' m', L - 4, Tp + 9); g.fillText(nf(e0) + ' m', L - 4, Tp + ph);
+  g.textAlign = 'left'; g.fillStyle = cAc; g.fillText('100 %', L + pw + 3, Tp + 9); g.fillText('0 %', L + pw + 3, Tp + ph);
+  g.fillStyle = cTx; g.textAlign = 'center';
+  const km = r.P.dist / 1000, st = km > 60 ? 20 : km > 25 ? 10 : km > 10 ? 5 : 2;
+  for (let k = 0; k <= km; k += st) g.fillText(k + ' km', L + k / km * pw, H - 6);
+  if (cvSel >= 0 && cvSel <= n) {
+    const i = cvSel; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(i), Tp); g.lineTo(X(i), Tp + ph); g.stroke();
+    g.fillStyle = cAc; g.beginPath(); g.arc(X(i), YS(x.soc[i]), 4.5, 0, 7); g.fill();
+  }
+}
+function bindChart() {
+  const cv = $('cv'); if (!cv) return; cvSel = -1;
+  const pick = ev => {
+    const geo = cv._geo; if (!geo) return;
+    const leg = curLeg(), r = leg.routes[leg.sel], rc = cv.getBoundingClientRect();
+    const d = clamp((ev.clientX - rc.left - geo.L) / geo.pw, 0, 1) * geo.dist;
+    let i = Math.round(d / geo.dist * geo.n); i = clamp(i, 0, geo.n); cvSel = i;
+    const p = r.P.pts[i], q = r.res.ratio[Math.min(i, geo.n - 1)], c = r.res.e[Math.min(i, geo.n - 1)] / r.P.pts[Math.min(i, geo.n - 1)].len * 1e5;
+    $('cvInfo').innerHTML = `<b style="color:var(--tx)">km ${nf(p.d / 1000, 1)}</b> · ${nf(p.ele)} m · batería <b style="color:var(--ac)">${nf(r.res.soc[i], 1)} %</b> · ${nf(c)} kWh/100 km · ${q >= 0.8 ? 'fluido' : q >= 0.55 ? 'denso' : 'atasco'} · ${hhmm(r.departMs + r.res.tCum[i] * 1000)}`;
+    if (map) { if (!cursorMk) cursorMk = L.circleMarker([p.lat, p.lon], { radius: 9, color: '#fff', weight: 3, fillColor: '#0a0e13', fillOpacity: 1 }).addTo(map); else cursorMk.setLatLng([p.lat, p.lon]).addTo(map); }
+    drawChart();
+  };
+  cv.onpointerdown = pick; cv.onpointermove = ev => { if (ev.buttons || ev.pointerType === 'touch') pick(ev); };
+}
+
+/* Mejor hora para salir: tiempo y consumo cada 30 minutos */
+async function bestTime() {
+  const leg = curLeg(), r = leg.routes[leg.sel], d0 = new Date(r.departMs); d0.setHours(6, 0, 0, 0);
+  const slots = []; for (let k = 0; k <= 32; k++) slots.push(d0.getTime() + k * 18e5);
+  const out = new Array(slots.length).fill(null), now = Date.now();
+  const btn = $('bBest'); btn.disabled = true; btn.textContent = 'Calculando…';
+  let ttFail = false;
+  const one = async k => {
+    const ms = slots[k]; let tr = { type: 'pattern', mode: 'auto' };
+    if (leg.useTT && !ttFail && ms > now + 12e4) try {
+      const rr = await routeTomTom(leg.points, { departMs: ms, alts: false });
+      tr = Object.assign({ type: 'tomtom' }, rr[0].tt);
+    } catch (e) { ttFail = true; }
+    else if (leg.useTT && ms <= now + 12e4) return;      // con TomTom no se calculan horas ya pasadas
+    const q = runSim(r.P, tr, leg.soc0, ms, leg.wx);
+    out[k] = { ms, t: q.timeTT || q.time, e: q.net, soc: q.socEnd };
+  };
+  for (let k = 0; k < slots.length; k += 4) await Promise.all([k, k + 1, k + 2, k + 3].filter(i => i < slots.length).map(one));
+  btn.disabled = false; btn.textContent = 'Recalcular mejor hora';
+  const ok = out.filter(Boolean);
+  if (!ok.length) { $('bestTx').innerHTML = '<div class="note">No quedan horas por delante hoy. Programa otro día y vuelve a calcular.</div>'; return; }
+  const best = ok.reduce((a, b) => (b.t < a.t - 30 || (Math.abs(b.t - a.t) <= 30 && b.e < a.e)) ? b : a), worst = ok.reduce((a, b) => b.t > a.t ? b : a);
+  const cv = $('cvBest'); cv.style.display = 'block';
+  const dpr = window.devicePixelRatio || 1, W = cv.offsetWidth, H = 150; cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px';
+  const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  const css = getComputedStyle(document.body), cTx = css.getPropertyValue('--mu'), cAc = css.getPropertyValue('--ac');
+  const tMax = worst.t, bw = W / slots.length, eMin = Math.min(...ok.map(o => o.e)), eMax = Math.max(...ok.map(o => o.e), eMin + 0.1);
+  out.forEach((o, k) => {
+    if (!o) return;
+    const hgt = o.t / tMax * (H - 40), rel = (o.t - best.t) / Math.max(60, tMax - best.t);
+    g.fillStyle = o === best ? cAc : rel > 0.6 ? '#ff5247' : rel > 0.25 ? '#ffc233' : 'rgba(140,160,180,.6)';
+    g.fillRect(k * bw + 1, H - 20 - hgt, bw - 2, hgt);
+  });
+  g.strokeStyle = '#55bdff'; g.lineWidth = 2; g.beginPath(); let first = true;
+  out.forEach((o, k) => { if (!o) return; const y = 6 + (1 - (o.e - eMin) / (eMax - eMin)) * 20, xx = k * bw + bw / 2; first ? g.moveTo(xx, y) : g.lineTo(xx, y); first = false; }); g.stroke();
+  g.fillStyle = cTx; g.font = '11px system-ui'; g.textAlign = 'center';
+  for (let k = 0; k < slots.length; k += 4) g.fillText(new Date(slots[k]).getHours() + 'h', clamp(k * bw + bw / 2, 10, W - 12), H - 5);
+  $('bestTx').innerHTML = `<div style="margin-top:8px"><b style="color:var(--ac);font-size:20px">Mejor hora: ${hhmm(best.ms)}</b> · ${fmtMin(best.t)} · ${nf(best.e, 1)} kWh · llegas con ${nf(Math.max(0, best.soc))} %</div>
+    <div class="hint">La peor: ${hhmm(worst.ms)} · ${fmtMin(worst.t)} · ${nf(worst.e, 1)} kWh. Barras: tiempo · línea azul: consumo${ttFail ? ' · TomTom no respondió en alguna hora: se completó con el patrón' : ''}.</div>`;
+}
+
+/* ---------- 14. CALIBRACIÓN ---------- */
+let calSel = 0, calLvl = null;
+function renderCal() {
+  const H = ST.hist, C = ST.calib;
+  const avg = l => { const a = C.filter(c => !l || c.level === l); return a.length ? nf(a.slice(l ? -5 : -8).reduce((s, c) => s + c.k, 0) / Math.min(a.length, l ? 5 : 8), 2) + ` (${a.length})` : '—'; };
+  let h = `<div class="card"><h3>Calibrar con un viaje real</h3><div class="hint">Después de un viaje, elige la estimación, escribe el consumo que marca el ordenador de a bordo y el tráfico que hubo. La app corrige las siguientes estimaciones con la media de tus últimos viajes.</div>`;
+  if (!H.length) h += `<div class="note">Todavía no hay estimaciones. Calcula una ruta primero.</div>`;
+  else {
+    calSel = clamp(calSel, 0, H.length - 1); const t = H[calSel]; if (!calLvl) calLvl = t.lvl;
+    h += `<label class="f">Viaje estimado</label><select id="calTrip">${H.map((x, i) => `<option value="${i}"${i === calSel ? ' selected' : ''}>${esc(x.label)} · ${fmtDay(x.at)} ${hhmm(x.at)}</option>`).join('')}</select>
+      <div class="hint">Estimado: <b style="color:var(--tx)">${nf(t.cons, 1)} kWh/100 km</b> en ${nf(t.dist / 1000, 1)} km · ${esc(t.src)}</div>
+      <label class="f">Consumo real del ordenador de a bordo (kWh/100 km)</label><input type="number" id="calReal" step="0.1" inputmode="decimal" placeholder="p. ej. 15,4">
+      <label class="f">Tráfico que hubo de verdad</label><div class="seg" id="calLvl">${['f', 'n', 'c'].map(l => `<button data-l="${l}" class="${calLvl === l ? 'on' : ''}">${LEVELS[l].name}</button>`).join('')}</div>
+      <button class="big" id="calSave" style="height:54px">GUARDAR CALIBRACIÓN</button>`;
+  }
+  h += `</div><div class="card"><h3>Tu factor de corrección</h3><div class="grid">
+    <div class="st"><span>Global (últimos 8)</span><b>× ${avg(null)}</b></div><div class="st"><span>Sin tráfico</span><b>× ${avg('f')}</b></div>
+    <div class="st"><span>Normal</span><b>× ${avg('n')}</b></div><div class="st"><span>Congestionado</span><b>× ${avg('c')}</b></div></div>
+    <div class="hint">Entre paréntesis, viajes calibrados. El factor por nivel se aplica cuando hay al menos 2 viajes de ese nivel; si no, el global.</div>
+    ${C.map((c, i) => `<div class="li"><div class="grow"><b>${esc(c.label)}</b><small>${fmtDay(c.at)} · real ${nf(c.real, 1)} / estimado ${nf(c.est, 1)} kWh/100 km · ${LEVELS[c.level].name} · ×${nf(c.k, 2)}</small></div><button class="btn sm" data-cdel="${i}">✕</button></div>`).join('')}</div>`;
+  const box = $('cal'); box.innerHTML = h;
+  box.onchange = e => { if (e.target.id === 'calTrip') { calSel = +e.target.value; calLvl = null; renderCal(); } };
+  box.onclick = e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.l) { calLvl = t.dataset.l; t.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === t)); }
+    else if (t.dataset.cdel != null) { C.splice(+t.dataset.cdel, 1); save(); renderCal(); }
+    else if (t.id === 'calSave') {
+      const real = parseFloat(String($('calReal').value).replace(',', '.')), x = H[calSel];
+      if (!(real > -30 && real < 80)) return toast('Escribe el consumo real en kWh/100 km', true);
+      // k corrige la energía gastada: (neto real + recuperado estimado) / gasto estimado sin calibrar
+      const k = clamp((real * x.dist / 1e5 + x.recov) / x.grossRaw, 0.5, 1.8);
+      C.push({ at: x.at, label: x.label, k, level: calLvl, real, est: x.cons }); if (C.length > 30) C.shift();
+      save(); toast(`Calibración guardada: factor ×${nf(k, 2)}`); renderCal();
+    }
+  };
+}
+
+/* ---------- 15. AJUSTES ---------- */
+const FIELDS = {
+  car: [['battUse', 'Batería útil (kWh)', 0.1], ['battGross', 'Batería bruta (kWh)', 0.1], ['wltpKm', 'Autonomía WLTP (km)', 1], ['wltpCons', 'Consumo WLTP (kWh/100 km)', 0.1],
+    ['mass', 'Peso en vacío (kg)', 5], ['driver', 'Conductor (kg)', 1], ['paxKg', 'Peso por pasajero (kg)', 1], ['powerKW', 'Potencia del motor (kW)', 1],
+    ['cd', 'Coef. aerodinámico Cd', 0.005], ['area', 'Área frontal (m²)', 0.01], ['crr', 'Rodadura Crr', 0.0005], ['etaDrive', 'Eficiencia tracción (0-1)', 0.01],
+    ['etaRegen', 'Eficiencia regeneración nivel 2 (0-1)', 0.01], ['regenMaxKW', 'Tope de regeneración (kW)', 5], ['auxKW', 'Electrónica (kW)', 0.05], ['hvacMaxKW', 'Climatización máx. (kW)', 0.1], ['comfortC', 'Temperatura de confort (°C)', 0.5]],
+  traffic: [['ratioN', 'Normal: velocidad / flujo libre', 0.01], ['ratioNA', 'Normal-alto: velocidad / flujo libre', 0.01], ['ratioC', 'Congestionado: velocidad / flujo libre (0,25-0,45)', 0.01],
+    ['stopsUrb', 'Paradas por km en ciudad (fluido)', 0.1], ['stopsRur', 'Paradas por km en carretera', 0.05], ['stopsJamMin', 'Stop & go mín. por km', 0.5], ['stopsJamMax', 'Stop & go máx. por km', 0.5],
+    ['peakFactor', 'Velocidad punta entre paradas (× media)', 0.05], ['latAcc', 'Aceleración lateral en curva (m/s²)', 0.1], ['acc', 'Aceleración habitual (m/s²)', 0.1], ['dec', 'Frenada habitual (m/s²)', 0.1], ['windShelter', 'Viento que llega al coche (0-1)', 0.05]],
+  model: [['step', 'Longitud de tramo (m, 50-100)', 5], ['defaultT', 'Temperatura sin previsión (°C)', 1]]
+};
+function renderAj() {
+  const S = ST.S;
+  const fl = (grp) => FIELDS[grp].map(f => `<label class="f">${f[1]}</label><input type="number" step="${f[2]}" data-g="${grp}" data-f="${f[0]}" value="${S[grp][f[0]]}" inputmode="decimal">`).join('');
+  const dOpt = v => [['LV', 'Laborables'], ['V', 'Viernes'], ['S', 'Sábados'], ['D', 'Domingos'], ['F', 'Festivos'], ['T', 'Todos']].map(o => `<option value="${o[0]}"${o[0] === v ? ' selected' : ''}>${o[1]}</option>`).join('');
+  const lOpt = v => ['f', 'n', 'na', 'c'].map(l => `<option value="${l}"${l === v ? ' selected' : ''}>${LEVELS[l].name}</option>`).join('');
+  $('aj').innerHTML = `
+  <details open><summary>API keys</summary><div>
+    <label class="f">TomTom (tráfico real y previsión) · <a href="https://developer.tomtom.com/" target="_blank" rel="noopener">conseguir key</a></label><input type="text" data-key="tomtom" value="${esc(S.keys.tomtom)}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="f">OpenRouteService (rutas, alternativas, elevación) · <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">conseguir key</a></label><input type="text" data-key="ors" value="${esc(S.keys.ors)}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="f">Open Charge Map (cargadores, opcional) · <a href="https://openchargemap.org/site/develop/api" target="_blank" rel="noopener">conseguir key</a></label><input type="text" data-key="ocm" value="${esc(S.keys.ocm)}" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="hint">Sin keys la app funciona igual con OSRM (rutas) y el tráfico por patrones. Las keys solo se guardan en este móvil.</div>
+    <button class="btn" style="width:100%;margin-top:8px" id="ajTest">Probar las keys</button><div id="ajTestOut"></div>
+  </div></details>
+  <details><summary>Coche · Kia EV3 GT-Line</summary><div>
+    <label class="f">Variante</label><div class="seg" id="ajVar"><button data-var="fwd" class="${S.car.variant === 'fwd' ? 'on' : ''}">Long Range 150 kW</button><button data-var="awd" class="${S.car.variant === 'awd' ? 'on' : ''}">AWD 195 kW</button></div>
+    ${fl('car')}<div class="hint">Regeneración por nivel (0-3, i-Pedal): ×${Object.values(S.regenLevels).join(' · ×')} sobre la eficiencia del nivel 2.</div></div></details>
+  <details><summary>Tráfico y modelo</summary><div>${fl('traffic')}${fl('model')}
+    <label class="tog">Refinar el tiempo real con Traffic Flow<input type="checkbox" id="ajFlow"${S.model.flow ? ' checked' : ''}></label></div></details>
+  <details><summary>Patrones de tráfico por horario</summary><div>
+    <div class="hint">Zonas: ${ZONES.map(z => z.id + ' ' + esc(z.name)).join(' · ')}. Si coinciden varias reglas, gana la última.</div>
+    <label class="f">Nivel cuando no hay regla</label><select id="ajDef">${lOpt(S.patternDefault)}</select>
+    ${S.rules.map((r, i) => `<div class="rule" data-r="${i}"><select data-p="days">${dOpt(r.days)}</select><input type="time" data-p="from" value="${r.from}"><input type="time" data-p="to" value="${r.to}">
+      <input type="text" data-p="zones" value="${esc(r.zones)}" inputmode="numeric" aria-label="Zonas"><select data-p="level">${lOpt(r.level)}</select><button class="btn sm" data-rdel="${i}">Quitar</button></div>`).join('')}
+    <button class="btn" style="width:100%;margin-top:8px" id="ajRuleAdd">＋ Añadir regla</button>
+    <label class="f">Festivos (AAAA-MM-DD, separados por comas)</label><textarea id="ajFest">${esc(S.festivos.join(', '))}</textarea>
+    <div class="hint">Las zonas son polígonos aproximados sobre la TF-5, la TF-1 y los cascos urbanos.</div></div></details>
+  <details><summary>Apariencia y datos</summary><div>
+    <div class="seg" id="ajTheme"><button data-th="dark" class="${ST.theme === 'dark' ? 'on' : ''}">Oscuro</button><button data-th="sol" class="${ST.theme === 'sol' ? 'on' : ''}">Claro (pleno sol)</button></div>
+    <button class="btn" style="width:100%;margin-bottom:8px" id="ajChg">Actualizar puntos de recarga${ST.chg ? ' (' + ST.chg.list.length + ')' : ''}</button>
+    <button class="btn" style="width:100%;margin-bottom:8px" id="ajReset">Restaurar valores de fábrica (conserva keys, favoritos y calibración)</button>
+    <button class="btn" style="width:100%" id="ajWipe">Borrar historial y calibración</button>
+    <div class="hint" style="margin-top:10px">Datos: © OpenStreetMap, TomTom, OpenRouteService, OSRM, Open-Meteo, Open Charge Map. Estimación orientativa: conduce siempre con margen.</div></div></details>`;
+  const box = $('aj');
+  box.onchange = e => {
+    const t = e.target;
+    if (t.dataset.key) { S.keys[t.dataset.key] = t.value.trim(); if (t.dataset.key === 'ocm') ST.chg = null; }
+    else if (t.dataset.g) { const v = parseFloat(String(t.value).replace(',', '.')); if (isFinite(v)) S[t.dataset.g][t.dataset.f] = t.dataset.f === 'step' ? clamp(v, 40, 150) : v; }
+    else if (t.dataset.p) { S.rules[+t.closest('.rule').dataset.r][t.dataset.p] = t.value; }
+    else if (t.id === 'ajDef') S.patternDefault = t.value;
+    else if (t.id === 'ajFest') S.festivos = t.value.split(/[,\s]+/).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x));
+    else if (t.id === 'ajFlow') S.model.flow = t.checked;
+    save(); syncForm();
+  };
+  box.onclick = async e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.var) { S.car.variant = t.dataset.var; Object.assign(S.car, S.variants[t.dataset.var]); save(); renderAj(); toast('Variante cambiada: peso, potencia y WLTP actualizados'); }
+    else if (t.dataset.rdel != null) { S.rules.splice(+t.dataset.rdel, 1); save(); renderAj(); }
+    else if (t.id === 'ajRuleAdd') { S.rules.push({ days: 'LV', from: '08:00', to: '09:00', zones: '1', level: 'n' }); save(); renderAj(); }
+    else if (t.dataset.th) { ST.theme = t.dataset.th; applyTheme(); save(); renderAj(); }
+    else if (t.id === 'ajReset') { const k = S.keys; ST.S = clone(DEFAULTS); ST.S.keys = k; save(); renderAj(); toast('Valores de fábrica restaurados'); }
+    else if (t.id === 'ajWipe') { ST.hist = []; ST.calib = []; save(); toast('Historial y calibración borrados'); }
+    else if (t.id === 'ajChg') { try { busy(true, 'Cargando puntos de recarga…'); const l = await loadChargers(true); toast(l ? l.length + ' puntos de recarga en Tenerife' : 'Falta la API key de Open Charge Map', !l); renderAj(); } catch (er) { toast(er.message, true); } finally { busy(false); } }
+    else if (t.id === 'ajTest') testKeys();
+  };
+}
+async function testKeys() {
+  const o = $('ajTestOut'), K = ST.S.keys, A = FAVS0[0], B = FAVS0[1], res = [];
+  o.innerHTML = '<div class="hint">Probando…</div>';
+  const t = async (name, has, fn) => { if (!has) return res.push(`${name}: sin key`); try { await fn(); res.push(`${name}: ✔ correcta`); } catch (e) { res.push(`${name}: ✖ ${e.message}`); } };
+  await t('TomTom', K.tomtom, () => routeTomTom([A, B], { alts: false }));
+  await t('OpenRouteService', K.ors, () => routeORS([A, B]));
+  await t('Open Charge Map', K.ocm, () => loadChargers(true));
+  o.innerHTML = res.map(x => `<div class="note">${esc(x)}</div>`).join('');
+}
+function applyTheme() { document.body.classList.toggle('sol', ST.theme === 'sol'); }
+
+/* ---------- 16. PWA: manifest e icono generados al vuelo + service worker si hay https ---------- */
+function setupPWA() {
+  try {
+    const icon = sz => {
+      const c = document.createElement('canvas'); c.width = c.height = sz; const g = c.getContext('2d'), u = sz / 100;
+      g.fillStyle = '#0a0e13'; g.fillRect(0, 0, sz, sz);
+      g.fillStyle = '#2a3644'; g.beginPath(); g.moveTo(8 * u, 78 * u); g.lineTo(40 * u, 34 * u); g.lineTo(54 * u, 52 * u); g.lineTo(66 * u, 40 * u); g.lineTo(92 * u, 78 * u); g.closePath(); g.fill();
+      g.fillStyle = '#c8f03c'; g.beginPath(); g.moveTo(56 * u, 14 * u); g.lineTo(30 * u, 56 * u); g.lineTo(47 * u, 56 * u); g.lineTo(40 * u, 88 * u); g.lineTo(70 * u, 44 * u); g.lineTo(52 * u, 44 * u); g.closePath(); g.fill();
+      return c.toDataURL('image/png');
+    };
+    const i192 = icon(192), here = location.href.split('#')[0].split('?')[0];
+    const man = { name: 'Planificador EV3 Tenerife', short_name: 'EV3 Tenerife', description: 'Rutas y consumo del Kia EV3 en Tenerife', lang: 'es-ES', start_url: here, scope: here.replace(/[^/]*$/, ''),
+      display: 'standalone', orientation: 'portrait', background_color: '#0a0e13', theme_color: '#0a0e13',
+      icons: [{ src: i192, sizes: '192x192', type: 'image/png', purpose: 'any maskable' }, { src: icon(512), sizes: '512x512', type: 'image/png', purpose: 'any maskable' }] };
+    const add = (rel, href) => { const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l); };
+    add('manifest', 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(man)));
+    add('icon', i192); add('apple-touch-icon', i192);
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { });
+  } catch (e) { }
+}
+
+/* ---------- 17. ARRANQUE ---------- */
+applyTheme(); initMap(); renderWps(); renderZones(); bindForm(); syncForm(); setupPWA();
+window.addEventListener('resize', () => { map && map.invalidateSize(); drawChart(); });
+window.addEventListener('offline', () => toast('Sin conexión a internet', true));
+
+</script>
+</body>
+</html>
